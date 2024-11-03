@@ -25,7 +25,7 @@ paths:
               schema:
                 $ref: '#components/schemas/catalog'
         "429":
-          $ref: '#/components/responses/tooManyRequests'
+          description: Client should try again
 
   /catalog/{path}/:
     put:
@@ -40,11 +40,11 @@ paths:
         "200":
           description: OK
         "400":
-          description: Parent folder doesn't exist
-        "403":
-          description: Only an admin can modify the parent folder
+          description: Parent folder(s) don't exist
+        "401":
+          $ref: '#/components/responses/adminCurated'
         "429":
-          $ref: '#/components/responses/tooManyRequests'
+          description: Client should try again
 
   /catalog/{filepath}:
     get:
@@ -68,7 +68,7 @@ paths:
         "404":
           description: File Not Found
         "429":
-          $ref: '#/components/responses/tooManyRequests'
+          description: Client should try again
     put:
       summary: add a file to the catalog
       parameters:
@@ -91,12 +91,12 @@ paths:
           description: file accepted
         "400":
           description: Parent folder doesn't exist
-        "403":
-          description: Only an admin can add files to the folder
+        "401":
+          $ref: '#/components/responses/adminCurated'
         "411":
           description: Content-Length required
         "429":
-          $ref: '#/components/responses/tooManyRequests'
+          description: Client should try again
     delete:
       summary: remove the file from the catalog
       parameters:
@@ -108,12 +108,12 @@ paths:
       responses:
         "200":
           description: file removed
-        "403":
-          description: Only an admin can remove files from the folder
+        "401":
+          $ref: '#/components/responses/adminCurated'
         "404":
           description: File Not Found
         "429":
-          $ref: '#/components/responses/tooManyRequests'
+          description: Client should try again
 
   /catalog/{filepath}?title={title}:
     put:
@@ -132,12 +132,12 @@ paths:
       responses:
         "200":
           description: OK
-        "403":
-          description: Only an admin can modify the title
+        "401":
+          $ref: '#/components/responses/adminCurated'
         "404":
           description: File Not Found
         "429":
-          $ref: '#/components/responses/tooManyRequests'
+          description: Client should try again
 
   /catalog/{filepath}?icon:
     get:
@@ -156,7 +156,7 @@ paths:
         "404":
           description: File Not Found
         "429":
-          $ref: '#/components/responses/tooManyRequests'
+          description: Client should try again
     put:
       description: set the icon for the file
       parameters:
@@ -177,15 +177,17 @@ paths:
       responses:
         "200":
           description: icon has been updated
+        "401":
+          $ref: '#/components/responses/adminCurated'
         "404":
           description: File Not Found
         "429":
-          $ref: '#/components/responses/tooManyRequests'
+          description: Client should try again
 
 components:
   responses:
-    tooManyRequests:
-      description: Client should try again
+    adminCurated:
+      description: Only admin can modify contents
 
   schemas:
     catalog:
