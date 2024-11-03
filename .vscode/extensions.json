@@ -1,5 +1,7 @@
 {
     "recommendations": [
-        "arjun.swagger-viewer"
+        "arjun.swagger-viewer",
+        "espressif.esp-idf-extension",
+        "gruntfuggly.todo-tree"
     ]
 }
