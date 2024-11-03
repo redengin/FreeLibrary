@@ -1,0 +1,209 @@
+# for visualization use vscode:Preview Swagger
+openapi: 3.0.3
+info:
+  title: Little Free Library
+  description: REST API
+  version: 0.0.0
+
+# no security required
+security: []
+
+servers: [
+    # android needs absolute IP
+    url: http://192.168.4.1/api
+  ]
+
+paths:
+  /catalog:
+    get:
+      summary: retrieve listing of all content
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#components/schemas/catalog'
+        "429":
+          $ref: '#/components/responses/tooManyRequests'
+
+  /catalog/{path}/:
+    put:
+      summary: create a new subfolder
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Parent folder doesn't exist
+        "403":
+          description: Only an admin can modify the parent folder
+        "429":
+          $ref: '#/components/responses/tooManyRequests'
+
+  /catalog/{filepath}:
+    get:
+      summary: download the file
+      parameters:
+        - name: filepath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: server is sending the file
+          headers:
+            X-FileTimestamp:
+              schema:
+                type: string
+                description: ISO 8601 Z (aka UTC time)
+          content:
+            application/octet-stream: {}
+        "404":
+          description: File Not Found
+        "429":
+          $ref: '#/components/responses/tooManyRequests'
+    put:
+      summary: add a file to the catalog
+      parameters:
+        - name: filepath
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: Content-Length
+          in: header
+          required: true
+          schema:
+            type: integer
+            description: size of file in bytes
+      requestBody:
+        content:
+          application/octet-stream: {}
+      responses:
+        "200":
+          description: file accepted
+        "400":
+          description: Parent folder doesn't exist
+        "403":
+          description: Only an admin can add files to the folder
+        "411":
+          description: Content-Length required
+        "429":
+          $ref: '#/components/responses/tooManyRequests'
+    delete:
+      summary: remove the file from the catalog
+      parameters:
+        - name: filepath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: file removed
+        "403":
+          description: Only an admin can remove files from the folder
+        "404":
+          description: File Not Found
+        "429":
+          $ref: '#/components/responses/tooManyRequests'
+
+  /catalog/{filepath}?title={title}:
+    put:
+      description: set the title for the file
+      parameters:
+        - name: filepath
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: title
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+        "403":
+          description: Only an admin can modify the title
+        "404":
+          description: File Not Found
+        "429":
+          $ref: '#/components/responses/tooManyRequests'
+
+  /catalog/{filepath}?icon:
+    get:
+      description: get the icon for the file
+      parameters:
+        - name: filepath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: server is sending the icon
+          content:
+            application/octet-stream: {}
+        "404":
+          description: File Not Found
+        "429":
+          $ref: '#/components/responses/tooManyRequests'
+    put:
+      description: set the icon for the file
+      parameters:
+        - name: filepath
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: Content-Length
+          in: header
+          required: true
+          schema:
+            type: integer
+            description: size of icon in bytes
+      requestBody:
+        content:
+          application/octet-stream: {}
+      responses:
+        "200":
+          description: icon has been updated
+        "404":
+          description: File Not Found
+        "429":
+          $ref: '#/components/responses/tooManyRequests'
+
+components:
+  responses:
+    tooManyRequests:
+      description: Client should try again
+
+  schemas:
+    catalog:
+      type: array
+      items:
+        type: object
+        properties:
+          filepath:
+            type: string
+            description: path to file
+          size:
+            description: size in bytes
+            type: integer
+          timestamp:
+            description: ISO 8601 Z (aka UTC time)
+            type: string
+          title:
+            description: title for item
+            type: string
+          hasIcon:
+            type: boolean
