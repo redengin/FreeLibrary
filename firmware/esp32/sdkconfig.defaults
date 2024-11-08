@@ -1,3 +1,5 @@
+# configuration per v5.3.1
+
 # on-target partitions
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
