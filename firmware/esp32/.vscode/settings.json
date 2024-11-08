@@ -12,5 +12,8 @@
     ],
     "idf.port": "/dev/ttyS1",
     "idf.pythonBinPath": "/home/redengin/opt/esp/.espressif/python_env/idf5.3_py3.12_env/bin/python",
-    "idf.toolsPath": "/home/redengin/opt/esp/.espressif"
+    "idf.toolsPath": "/home/redengin/opt/esp/.espressif",
+    "files.associations": {
+        "sdkconfig*": "properties"
+    }
 }
