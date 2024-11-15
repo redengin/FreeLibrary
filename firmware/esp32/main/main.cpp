@@ -15,9 +15,6 @@ void app_main(void)
     // provide the frontends
     static WebServer webserver;
 
-    // start publishing the ssid
-    wap.publish();
-
     // accept working firmware
     esp_ota_mark_app_valid_cancel_rollback();
 }
