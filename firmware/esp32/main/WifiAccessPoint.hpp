@@ -15,9 +15,6 @@ public:
     /// @brief change the published SSID
     void setSsid(const std::string ssid);
 
-    // resolve all DNS queries to the captive portal
-    static std::vector<char> dnsReply(const void* const request, const size_t sz);
-
 private:
     std::string ssid;
 };
