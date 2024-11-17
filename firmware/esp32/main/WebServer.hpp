@@ -7,6 +7,8 @@
 class WebServer
 {
 public:
+    static constexpr char TAG[] = "WebServer";    ///< ESP logging tag
+
     WebServer();
 
     void registerUriHandler(const httpd_uri_t& uri);
