@@ -18,6 +18,17 @@ CONFIG_SECURE_SIGNED_ON_UPDATE_NO_SECURE_BOOT=y
 CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=y
 CONFIG_SECURE_BOOT_SIGNING_KEY="~/keystore/sneakernet.pem"
 
+# if new firmware crashes, reuse the last
+BOOTLOADER_APP_ROLLBACK_ENABLE=y
+
+# Network Stack
+# set the max sockets allowed by ESP
+CONFIG_LWIP_MAX_SOCKETS=16
+
+# Webserver
+# increase allowable header size (required for mobile compatability)
+CONFIG_HTTPD_MAX_REQ_HDR_LEN=1024
+
 
 # # Configure FATFS
 # CONFIG_FATFS_VOLUME_COUNT=1
@@ -26,19 +37,6 @@ CONFIG_SECURE_BOOT_SIGNING_KEY="~/keystore/sneakernet.pem"
 # CONFIG_FATFS_MAX_LFN=255
 # # CONFIG_FATFS_API_ENCODING_UTF_8=y
 
-# # Configure WiFi
-# CONFIG_LWIP_MAX_SOCKETS=16
-
-# # Configure WebApi
-# # Required for connection redirect
-# CONFIG_HTTPD_MAX_REQ_HDR_LEN=1024
-
-# # ESP32 Boot and OTA
-# # currently requires 4MB chips
-# CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
-# CONFIG_ESPTOOLPY_FLASHSIZE="4MB"
-# CONFIG_PARTITION_TABLE_CUSTOM=y
-# CONFIG_PARTITION_TABLE_OFFSET=0x9000
 # CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
 
 
