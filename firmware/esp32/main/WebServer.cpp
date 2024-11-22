@@ -1,6 +1,7 @@
 #include "WebServer.hpp"
 
 #include <esp_log.h>
+#include <sdkconfig.h>
 
 extern "C" esp_err_t redirect(httpd_req_t *req, httpd_err_code_t err);
 
@@ -10,21 +11,15 @@ WebServer::WebServer()
 {
     // create HTTP server
     httpd_config_t httpConfig = HTTPD_DEFAULT_CONFIG();
-    // TODO support more users (max_open_sockets)
+    // support more users (max_open_sockets)
+    constexpr auto httpd_sockets_count = CONFIG_LWIP_MAX_SOCKETS
+        - 1 /* dns socket */
+        - 1 /* http scoket */
+        - 2 /* httpds sockets */;
+    httpConfig.max_open_sockets = httpd_sockets_count;
     ESP_ERROR_CHECK(httpd_start(&httpHandle, &httpConfig));
     // upon 404, redirect to index
     ESP_ERROR_CHECK(httpd_register_err_handler(httpHandle, HTTPD_404_NOT_FOUND, redirect));
-
-    // create HTTPS server
-    // FIXME
-    // httpd_ssl_config_t httpsConfig = HTTPD_SSL_CONFIG_DEFAULT();
-    // httpsConfig.httpd.max_open_sockets = 1; // only allow one admin at a time
-    // ESP_ERROR_CHECK(httpsd_start(&httpHandle, &httpConfig));
-
-    // FIXME
-    // android URLS:
-    //      /generate_204
-    //      /gen_204
 
     // provide captive portal
     registerUriHandler(

@@ -3,8 +3,7 @@ idf_component_register(
         "main.cpp"
         "WifiAccessPoint.cpp"
         "WebServer.cpp"
-    # INCLUDE_DIRS
-    #     "."
+        "SdCard.cpp"
 
     EMBED_FILES
         "../../portal.html"

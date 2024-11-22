@@ -117,7 +117,8 @@ namespace dns
         uint32_t ipv4_addr;
     } compressed_answer;
 
-    constexpr uint16_t DNS_COMPRESSION = 0XC000;
+    /// using DNS compression semantics (https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.4)
+    constexpr uint16_t compressed_name_mask = 0XC000;
 
     namespace rr
     {
@@ -177,7 +178,8 @@ void dns_service_task(void *)
         size_t responseCursor = sz;
         uint16_t an_count;
         size_t response_sz = sz;
-        for (an_count = 0; an_count < ntohs(header->qd_count); ++an_count)
+        const auto qd_count = htons(header->qd_count);
+        for (an_count = 0; an_count < qd_count; ++an_count)
         {
             if ((responseCursor + sizeof(dns::compressed_answer)) > sizeof(buffer))
             {
@@ -187,7 +189,7 @@ void dns_service_task(void *)
                 break;
             }
             auto answer = reinterpret_cast<dns::compressed_answer *>(&buffer[responseCursor]);
-            answer->offset = htons(dns::DNS_COMPRESSION | requestCursor);
+            answer->offset = htons(dns::compressed_name_mask | requestCursor);
             answer->type = htons(dns::rr::type::A);
             answer->dns_class = htons(dns::rr::dns_class::IN);
             constexpr size_t TTL_sec = 1;
