@@ -2,15 +2,15 @@
 
 #include <esp_log.h>
 #include <esp_vfs_fat.h>
+#include <sdmmc_cmd.h>
 
 SdCard::SdCard()
 {
     const sdmmc_host_t host = SDSPI_HOST_DEFAULT();
     const spi_bus_config_t spi_bus_config {
-        // configure pins per HSPI https://randomnerdtutorials.com/esp32-pinout-reference-gpios/
-        .mosi_io_num = GPIO_NUM_13,
-        .miso_io_num = GPIO_NUM_12,
-        .sclk_io_num = GPIO_NUM_14,
+        .mosi_io_num = GPIO_NUM_4,
+        .miso_io_num = GPIO_NUM_15,
+        .sclk_io_num = GPIO_NUM_2,
         .quadwp_io_num = -1, /* not used */
         .quadhd_io_num = -1, /* not used */
         .data4_io_num = -1,  /* not used */
@@ -43,5 +43,6 @@ SdCard::SdCard()
     sdmmc_card_t* card;
     auto result = esp_vfs_fat_sdspi_mount(path, &host, &slot_config, &mount_config, &card);
     ESP_LOGD(TAG, "mount sdcard result [%x %s]", result, esp_err_to_name(result));
-
+    if (ESP_OK == result)
+        sdmmc_card_print_info(stdout, card);
 }
