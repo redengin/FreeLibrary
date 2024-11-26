@@ -14,6 +14,9 @@ static void dns_service_task(void *pvParameters);
 WifiAccessPoint::WifiAccessPoint(const std::string ssid)
     : ssid(ssid)
 {
+    // tune down log chatter
+    esp_log_level_set("wifi_init", ESP_LOG_WARN);
+
     // start the network stack
     ESP_ERROR_CHECK(esp_netif_init());
 
@@ -38,7 +41,7 @@ WifiAccessPoint::WifiAccessPoint(const std::string ssid)
                          nullptr /* parameters (none) */,
                          tskIDLE_PRIORITY /* priority */,
                          nullptr /* handle (not used) */
-                         ));
+                    ));
     ESP_ERROR_CHECK(esp_wifi_start());
     ESP_LOGI(TAG, "started");
 }
