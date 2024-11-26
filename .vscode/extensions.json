@@ -1,7 +1,7 @@
 {
     "recommendations": [
-        "arjun.swagger-viewer",
+        "gruntfuggly.todo-tree",
+        "42crunch.vscode-openapi",
         "espressif.esp-idf-extension",
-        "gruntfuggly.todo-tree"
     ]
 }
