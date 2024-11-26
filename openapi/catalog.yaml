@@ -1,65 +1,92 @@
 # for visualization use vscode:Preview Swagger
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Little Free Library
-  description: REST API
+  description: Catalog REST API
   version: 0.0.0
 
-# no security required
-security: []
+# # no security required
+security: [
+  {}, # allow unsecured access
+  # TODO support admin access for curated folders
+  # {
+  #   type: apiKey,
+  #   name: api_key,
+  #   in: header
+  # }
+]
 
 servers: [
-    # android needs absolute IP
-    url: http://192.168.4.1/api
+    { url: http://192.168.4.1/api, # android needs absolute IP
+      description: "captive portal REST api"
+    }
   ]
 
 paths:
-  /catalog:
+  /catalog/{path}/:
+    parameters:
+      - name: path
+        in: path
+        required: false
+        description: defaults to root of catalog
+        schema:
+          type: string
     get:
-      summary: retrieve listing of all content
+      summary: get the path contents (subpaths and file entries)
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#components/schemas/catalog'
+                type: object
+                properties:
+                  subfolders:
+                    type: array
+                    items:
+                      type: string
+                      description: subfolders
+                  files:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      title:
+                        description: title for item
+                        type: string
+                      hasIcon:
+                        type: boolean
+                      size: 
+                        description: size in bytes
+                        type: integer
+                      timestamp:
+                        description: ISO 8601 Z (aka UTC time)
+                        type: string
+        "404":
+          description: File Not Found
         "429":
           description: Client should try again
 
-  /catalog/{path}/:
-    put:
-      summary: create a new subfolder
-      parameters:
-        - name: path
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: OK
-        "400":
-          description: Parent folder(s) don't exist
-        "401":
-          $ref: '#/components/responses/adminCurated'
-        "429":
-          description: Client should try again
-
-  /catalog/{filepath}:
+  /catalog/{path}/{file}:
+    parameters:
+      - name: path
+        in: path
+        required: false
+        schema:
+          type: string
+      - name: file
+        in: path
+        required: true
+        schema:
+          type: string
     get:
       summary: download the file
-      parameters:
-        - name: filepath
-          in: path
-          required: true
-          schema:
-            type: string
       responses:
         "200":
           description: server is sending the file
           headers:
             X-FileTimestamp:
+              description: timestamp of file [ISO 8601 Z (aka UTC time)]
               schema:
                 type: string
                 description: ISO 8601 Z (aka UTC time)
@@ -72,11 +99,6 @@ paths:
     put:
       summary: add a file to the catalog
       parameters:
-        - name: filepath
-          in: path
-          required: true
-          schema:
-            type: string
         - name: Content-Length
           in: header
           required: true
@@ -89,41 +111,31 @@ paths:
       responses:
         "200":
           description: file accepted
+        "411":
+          description: Content-Length required
         "400":
           description: Parent folder doesn't exist
         "401":
           $ref: '#/components/responses/adminCurated'
-        "411":
-          description: Content-Length required
-        "429":
-          description: Client should try again
-    delete:
-      summary: remove the file from the catalog
-      parameters:
-        - name: filepath
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: file removed
-        "401":
-          $ref: '#/components/responses/adminCurated'
-        "404":
-          description: File Not Found
         "429":
           description: Client should try again
 
-  /catalog/{filepath}?title={title}:
+    delete:
+      summary: remove the file from the catalog
+      responses:
+        "200":
+          description: file removed
+        "404":
+          description: File Not Found
+        "401":
+          $ref: '#/components/responses/adminCurated'
+        "429":
+          description: Client should try again
+
+  /catalog/{path}/{file}?title={title}:
     put:
       description: set the title for the file
       parameters:
-        - name: filepath
-          in: path
-          required: true
-          schema:
-            type: string
         - name: title
           in: query
           required: true
@@ -131,23 +143,17 @@ paths:
             type: string
       responses:
         "200":
-          description: OK
-        "401":
-          $ref: '#/components/responses/adminCurated'
+          description: title changed
         "404":
           description: File Not Found
+        "401":
+          $ref: '#/components/responses/adminCurated'
         "429":
           description: Client should try again
 
-  /catalog/{filepath}?icon:
+  /catalog/{path}/{file}?icon:
     get:
       description: get the icon for the file
-      parameters:
-        - name: filepath
-          in: path
-          required: true
-          schema:
-            type: string
       responses:
         "200":
           description: server is sending the icon
@@ -160,11 +166,6 @@ paths:
     put:
       description: set the icon for the file
       parameters:
-        - name: filepath
-          in: path
-          required: true
-          schema:
-            type: string
         - name: Content-Length
           in: header
           required: true
@@ -177,10 +178,10 @@ paths:
       responses:
         "200":
           description: icon has been updated
-        "401":
-          $ref: '#/components/responses/adminCurated'
         "404":
           description: File Not Found
+        "401":
+          $ref: '#/components/responses/adminCurated'
         "429":
           description: Client should try again
 
@@ -188,24 +189,3 @@ components:
   responses:
     adminCurated:
       description: Only admin can modify contents
-
-  schemas:
-    catalog:
-      type: array
-      items:
-        type: object
-        properties:
-          filepath:
-            type: string
-            description: path to file
-          size:
-            description: size in bytes
-            type: integer
-          timestamp:
-            description: ISO 8601 Z (aka UTC time)
-            type: string
-          title:
-            description: title for item
-            type: string
-          hasIcon:
-            type: boolean
