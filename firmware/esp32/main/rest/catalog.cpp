@@ -1,6 +1,6 @@
 #include "catalog.hpp"
 
-constexpr char uri[] = "/catalog/*";
+constexpr std::string uri{"/catalog/*"};
 
 extern "C" esp_err_t GET(httpd_req_t*);
 extern "C" esp_err_t PUT(httpd_req_t*);
@@ -20,7 +20,7 @@ void rest::registerCatalog(WebServer& webserver, Catalog& catalog)
 
     webserver.registerUriHandler(
         httpd_uri_t{
-            .uri = uri,
+            .uri = uri.c_str(),
             .method = HTTP_GET,
             .handler = GET,
             .user_ctx = &context
@@ -28,7 +28,7 @@ void rest::registerCatalog(WebServer& webserver, Catalog& catalog)
     );
     webserver.registerUriHandler(
         httpd_uri_t{
-            .uri = uri,
+            .uri = uri.c_str(),
             .method = HTTP_PUT,
             .handler = PUT,
             .user_ctx = &context
@@ -36,12 +36,18 @@ void rest::registerCatalog(WebServer& webserver, Catalog& catalog)
     );
     webserver.registerUriHandler(
         httpd_uri_t{
-            .uri = uri,
+            .uri = uri.c_str(),
             .method = HTTP_DELETE,
             .handler = DELETE,
             .user_ctx = &context
         }
     );
+}
+
+static std::string relativeUri(const char* const requestUri)
+{
+    // omit the base uri
+    return std::string(requestUri + uri.length() - sizeof('*'));
 }
 
 enum class UriType {
@@ -71,11 +77,10 @@ UriType uriType(const std::string uri)
         return UriType::FOLDER;
 }
 
-
 esp_err_t GET(httpd_req_t* const request)
 {
     // const Context& context = reinterpret_cast<const Context&>(request->user_ctx);
-    const std::string uri{request->uri};
+    const auto uri = relativeUri(request->uri);
     switch(uriType(uri))
     {
         // TODO
@@ -86,7 +91,7 @@ esp_err_t GET(httpd_req_t* const request)
 esp_err_t PUT(httpd_req_t* const request)
 {
     // const Context& context = reinterpret_cast<Context&>(request->user_ctx);
-    const std::string uri{request->uri};
+    const auto uri = relativeUri(request->uri);
     switch(uriType(uri))
     {
         // TODO
@@ -97,7 +102,7 @@ esp_err_t PUT(httpd_req_t* const request)
 esp_err_t DELETE(httpd_req_t* const request)
 {
     // const Context& context = reinterpret_cast<Context&>(request->user_ctx);
-    const std::string uri{request->uri};
+    const auto uri = relativeUri(request->uri);
     switch(uriType(uri))
     {
         // TODO
