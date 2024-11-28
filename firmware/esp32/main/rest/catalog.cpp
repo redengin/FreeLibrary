@@ -75,11 +75,10 @@ UriType uriType(const std::string uri)
 esp_err_t GET(httpd_req_t* const request)
 {
     // const Context& context = reinterpret_cast<const Context&>(request->user_ctx);
-
     const std::string uri{request->uri};
     switch(uriType(uri))
     {
-
+        // TODO
         default: return ESP_FAIL;
     }
 }
@@ -87,14 +86,22 @@ esp_err_t GET(httpd_req_t* const request)
 esp_err_t PUT(httpd_req_t* const request)
 {
     // const Context& context = reinterpret_cast<Context&>(request->user_ctx);
-    // TODO
-    return ESP_FAIL;
+    const std::string uri{request->uri};
+    switch(uriType(uri))
+    {
+        // TODO
+        default: return ESP_FAIL;
+    }
 }
 
 esp_err_t DELETE(httpd_req_t* const request)
 {
     // const Context& context = reinterpret_cast<Context&>(request->user_ctx);
-    // TODO
-    return ESP_FAIL;
+    const std::string uri{request->uri};
+    switch(uriType(uri))
+    {
+        // TODO
+        default: return ESP_FAIL;
+    }
 }
 
