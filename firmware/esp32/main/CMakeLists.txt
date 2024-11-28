@@ -4,7 +4,10 @@ idf_component_register(
         "WifiAccessPoint.cpp"
         "WebServer.cpp"
         "SdCard.cpp"
+        "Catalog.cpp"
 
     EMBED_FILES
         "../../portal.html"
+        "../../cacert.pem"
+        "../../cacert_prvtkey.pem"
 )

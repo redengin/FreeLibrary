@@ -1,22 +1,32 @@
 #include "WebServer.hpp"
 
 #include <esp_log.h>
-#include <sdkconfig.h>
 
 extern "C" esp_err_t redirect(httpd_req_t *req, httpd_err_code_t err);
 
 extern "C" esp_err_t PORTAL(httpd_req_t*);
 
-WebServer::WebServer()
+WebServer::WebServer(const size_t max_sockets)
 {
+    // create HTTPS server
+    httpd_ssl_config_t httpsConfig = HTTPD_SSL_CONFIG_DEFAULT();
+    // provide the public key
+    extern const unsigned char servercert_start[] asm("_binary_cacert_pem_start");
+    extern const unsigned char servercert_end[]   asm("_binary_cacert_pem_end");
+    httpsConfig.servercert = servercert_start;
+    httpsConfig.servercert_len = servercert_end - servercert_start;
+    // provide the private key
+    extern const unsigned char prvtkey_pem_start[] asm("_binary_cacert_prvtkey_pem_start");
+    extern const unsigned char prvtkey_pem_end[]   asm("_binary_cacert_prvtkey_pem_end");
+    httpsConfig.prvtkey_pem = prvtkey_pem_start;
+    httpsConfig.prvtkey_len = prvtkey_pem_end - prvtkey_pem_start;
+    ESP_ERROR_CHECK(httpd_ssl_start(&httpsHandle, &httpsConfig));
+    // upon 404, redirect to index
+    ESP_ERROR_CHECK(httpd_register_err_handler(httpsHandle, HTTPD_404_NOT_FOUND, redirect));
+
     // create HTTP server
     httpd_config_t httpConfig = HTTPD_DEFAULT_CONFIG();
-    // support more users (max_open_sockets)
-    constexpr auto httpd_sockets_count = CONFIG_LWIP_MAX_SOCKETS
-        - 1 /* dns socket */
-        - 1 /* http scoket */
-        - 2 /* httpds sockets */;
-    httpConfig.max_open_sockets = httpd_sockets_count;
+    httpConfig.max_open_sockets = max_sockets - httpsConfig.httpd.max_open_sockets;
     ESP_ERROR_CHECK(httpd_start(&httpHandle, &httpConfig));
     // upon 404, redirect to index
     ESP_ERROR_CHECK(httpd_register_err_handler(httpHandle, HTTPD_404_NOT_FOUND, redirect));
@@ -30,11 +40,13 @@ WebServer::WebServer()
             .user_ctx = this
         }
     );
+
 }
 
 void WebServer::registerUriHandler(const httpd_uri_t& handler)
 {
     ESP_ERROR_CHECK(httpd_register_uri_handler(httpHandle, &handler));
+    ESP_ERROR_CHECK(httpd_register_uri_handler(httpsHandle, &handler));
 }
 
 /// provides captive portal redirect

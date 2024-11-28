@@ -35,6 +35,7 @@ SdCard::SdCard()
         .get_dma_info = &sdspi_host_get_dma_info
     };
     const spi_bus_config_t spi_bus_config {
+        // pins configured for straight-thru to mmc peripheral
         .mosi_io_num = GPIO_NUM_4,
         .miso_io_num = GPIO_NUM_15,
         .sclk_io_num = GPIO_NUM_2,

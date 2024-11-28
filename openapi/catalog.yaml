@@ -41,6 +41,9 @@ paths:
               schema:
                 type: object
                 properties:
+                  locked:
+                    type: boolean
+                    description: folder contents are locked (only admin can modify)
                   subfolders:
                     type: array
                     items:
