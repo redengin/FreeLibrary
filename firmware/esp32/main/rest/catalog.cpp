@@ -44,22 +44,20 @@ void rest::registerCatalog(WebServer& webserver, Catalog& catalog)
     );
 }
 
-enum UriType {
+enum class UriType {
     ILLEGAL,
     FOLDER,
-    CONTENT,    ///< a served file
+    FILE,
     ICON,
     TITLE
 };
 
 UriType uriType(const std::string uri)
 {
-    // URI should not contain "../"
-    if (uri.find("../") != std::string::npos)
+    const std::filesystem::path path(uri);
+    // disallow relative paths
+    if (path.is_relative())
         return UriType::ILLEGAL;
-
-    if (uri.ends_with('/'))
-        return UriType::FOLDER;
 
     if (uri.ends_with("?icon"))
         return UriType::ICON;
@@ -67,7 +65,10 @@ UriType uriType(const std::string uri)
     if (uri.contains("?title="))
         return UriType::TITLE;
 
-    return UriType::CONTENT;
+    if (path.has_filename())
+        return UriType::FILE;
+    else
+        return UriType::FOLDER;
 }
 
 
