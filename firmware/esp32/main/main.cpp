@@ -5,6 +5,7 @@
 #include "WebServer.hpp"
 #include "SdCard.hpp"
 #include "Catalog.hpp"
+#include "rest/catalog.hpp"
 
 extern "C"
 void app_main(void)
@@ -25,6 +26,9 @@ void app_main(void)
 
     // provide the catalog
     static Catalog catalog(sdcard.root());
+    // register the catalog REST API
+    rest::registerCatalog(webserver, catalog);
+
 
     // accept working firmware
     esp_ota_mark_app_valid_cancel_rollback();

@@ -5,6 +5,7 @@ idf_component_register(
         "WebServer.cpp"
         "SdCard.cpp"
         "Catalog.cpp"
+        "rest/catalog.cpp"
 
     EMBED_FILES
         "../../portal.html"

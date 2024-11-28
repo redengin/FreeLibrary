@@ -8,28 +8,43 @@ extern "C" esp_err_t PORTAL(httpd_req_t*);
 
 WebServer::WebServer(const size_t max_sockets)
 {
+    // tune down logging chatter
+    // TODO
+    // esp_log_level_set("httpd_uri", ESP_LOG_ERROR);
+    // esp_log_level_set("httpd_txrx", ESP_LOG_WARN);
+    // esp_log_level_set("httpd_parse", ESP_LOG_ERROR);
+
     // create HTTPS server
     httpd_ssl_config_t httpsConfig = HTTPD_SSL_CONFIG_DEFAULT();
-    // provide the public key
-    extern const unsigned char servercert_start[] asm("_binary_cacert_pem_start");
-    extern const unsigned char servercert_end[]   asm("_binary_cacert_pem_end");
-    httpsConfig.servercert = servercert_start;
-    httpsConfig.servercert_len = servercert_end - servercert_start;
-    // provide the private key
-    extern const unsigned char prvtkey_pem_start[] asm("_binary_cacert_prvtkey_pem_start");
-    extern const unsigned char prvtkey_pem_end[]   asm("_binary_cacert_prvtkey_pem_end");
-    httpsConfig.prvtkey_pem = prvtkey_pem_start;
-    httpsConfig.prvtkey_len = prvtkey_pem_end - prvtkey_pem_start;
-    ESP_ERROR_CHECK(httpd_ssl_start(&httpsHandle, &httpsConfig));
-    // upon 404, redirect to index
-    ESP_ERROR_CHECK(httpd_register_err_handler(httpsHandle, HTTPD_404_NOT_FOUND, redirect));
+    {
+        // allow wildcard uris
+        httpsConfig.httpd.uri_match_fn = httpd_uri_match_wildcard;
+        // provide the public key
+        extern const unsigned char servercert_start[] asm("_binary_cacert_pem_start");
+        extern const unsigned char servercert_end[]   asm("_binary_cacert_pem_end");
+        httpsConfig.servercert = servercert_start;
+        httpsConfig.servercert_len = servercert_end - servercert_start;
+        // provide the private key
+        extern const unsigned char prvtkey_pem_start[] asm("_binary_cacert_prvtkey_pem_start");
+        extern const unsigned char prvtkey_pem_end[]   asm("_binary_cacert_prvtkey_pem_end");
+        httpsConfig.prvtkey_pem = prvtkey_pem_start;
+        httpsConfig.prvtkey_len = prvtkey_pem_end - prvtkey_pem_start;
+        ESP_ERROR_CHECK(httpd_ssl_start(&httpsHandle, &httpsConfig));
+        // upon 404, redirect to index
+        ESP_ERROR_CHECK(httpd_register_err_handler(httpsHandle, HTTPD_404_NOT_FOUND, redirect));
+    }
 
     // create HTTP server
     httpd_config_t httpConfig = HTTPD_DEFAULT_CONFIG();
-    httpConfig.max_open_sockets = max_sockets - httpsConfig.httpd.max_open_sockets;
-    ESP_ERROR_CHECK(httpd_start(&httpHandle, &httpConfig));
-    // upon 404, redirect to index
-    ESP_ERROR_CHECK(httpd_register_err_handler(httpHandle, HTTPD_404_NOT_FOUND, redirect));
+    {
+        // allow wildcard uris
+        httpConfig.uri_match_fn = httpd_uri_match_wildcard;
+        // maximize the availability to users
+        httpConfig.max_open_sockets = max_sockets - httpsConfig.httpd.max_open_sockets;
+        ESP_ERROR_CHECK(httpd_start(&httpHandle, &httpConfig));
+        // upon 404, redirect to index
+        ESP_ERROR_CHECK(httpd_register_err_handler(httpHandle, HTTPD_404_NOT_FOUND, redirect));
+    }
 
     // provide captive portal
     registerUriHandler(
@@ -37,7 +52,7 @@ WebServer::WebServer(const size_t max_sockets)
             .uri = "/",
             .method = HTTP_GET,
             .handler = PORTAL,
-            .user_ctx = this
+            .user_ctx = nullptr
         }
     );
 
