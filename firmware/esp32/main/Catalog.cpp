@@ -25,7 +25,7 @@ Catalog::Catalog(const std::filesystem::path _root)
     }
 }
 
-bool Catalog::exists(const std::string filepath) const
+bool Catalog::exists(const std::string& filepath) const
 {
     const std::filesystem::path path = root/filepath;
 
@@ -36,7 +36,7 @@ bool Catalog::exists(const std::string filepath) const
     return std::filesystem::exists(path);
 }
 
-std::time_t Catalog::timestamp(const std::string filepath) const
+std::time_t Catalog::timestamp(const std::string& filepath) const
 {
     const std::filesystem::path path{root/filepath};
 
@@ -48,7 +48,7 @@ std::time_t Catalog::timestamp(const std::string filepath) const
     return timestamp.time_since_epoch().count();
 }
 
-std::ifstream Catalog::readContent(const std::string filepath) const
+std::ifstream Catalog::readContent(const std::string& filepath) const
 {
     // // validate filename
     // if(isValidContentFilepath(filepath))

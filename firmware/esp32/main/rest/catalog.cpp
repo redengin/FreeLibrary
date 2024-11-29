@@ -96,20 +96,10 @@ esp_err_t GET(httpd_req_t* const request)
             httpd_resp_set_hdr(request, "X-FileTimestamp", headerField);
 
             // send the data 
-            // auto fis = context.catalog.readContent(uri);
-            // if (! fis.is_open())
-            //     return httpd_resp_send_404(request);
-
-            // std::unique_ptr<char[]> buffer = std::make_unique<char[]>(rest::CHUNK_SIZE);
-            // if (! buffer)
-            //     return httpd_resp_send_err(request, HTTPD_408_REQ_TIMEOUT, "Too many requests (try again)");
-
-            // httpd_resp_set_type(request, "application/octet-stream");
-            // return rest::httpSendData(request, fis, buffer);
-
-            return ESP_OK;
-        
-            break;
+            auto fis = context.catalog.readContent(uri);
+            if (! fis.is_open())
+                return httpd_resp_send_err(request, HTTPD_408_REQ_TIMEOUT, "Too many requests (try again)");
+            return rest::sendOctetStream(request, fis);
         }
 
         // TODO
