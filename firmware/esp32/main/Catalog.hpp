@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <fstream>
 
 class Catalog {
 public:
@@ -11,6 +12,16 @@ public:
 
     Catalog(std::filesystem::path root);
 
+    bool exists(const std::string filepath) const;
+
+    std::time_t timestamp(const std::string filepath) const;
+
+    std::ifstream readContent(const std::string filepath) const;
+
+
+    // bool isLocked(const std::filesystem::path path) const;
+
+    // static bool isValidContentFilepath(const std::string filepath);
 
 private:
     const std::filesystem::path root;
