@@ -51,20 +51,21 @@ paths:
                       description: subfolders
                   files:
                     type: object
+                    required: [name, size, timestamp]
                     properties:
                       name:
                         type: string
-                      title:
-                        description: title for item
-                        type: string
-                      hasIcon:
-                        type: boolean
                       size: 
                         description: size in bytes
                         type: integer
                       timestamp:
                         description: ISO 8601 Z (aka UTC time)
                         type: string
+                      title:
+                        description: title for item
+                        type: string
+                      hasIcon:
+                        type: boolean
         "404":
           description: Folder Not Found
         "429":

@@ -27,7 +27,7 @@ void app_main(void)
     // provide the catalog
     static Catalog catalog(sdcard.root());
     // register the catalog REST API
-    rest::registerCatalog(webserver, catalog);
+    rest::catalog::registerHandlers(webserver, catalog);
 
 
     // accept working firmware

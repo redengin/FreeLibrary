@@ -3,9 +3,10 @@
 #include "../WebServer.hpp"
 #include "../Catalog.hpp"
 
-namespace rest {
+namespace rest::catalog {
+    static constexpr char TAG[] = "rest::catalog"; ///< ESP logging tag
 
     static constexpr std::string_view uri_wildcard = "/catalog/*";
-    void registerCatalog(WebServer& webserver, Catalog& catalog);
+    void registerHandlers(WebServer& webserver, Catalog& catalog);
 
 };

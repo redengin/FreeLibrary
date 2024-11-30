@@ -1,6 +1,10 @@
 #include "catalog.hpp"
-
 #include "utils.hpp"
+
+#include <esp_log.h>
+using rest::catalog::TAG;
+#include <cJSON.h>
+
 
 
 extern "C" esp_err_t GET(httpd_req_t*);
@@ -12,7 +16,7 @@ struct Context {
     Catalog& catalog;        
 };
 
-void rest::registerCatalog(WebServer& webserver, Catalog& catalog)
+void rest::catalog::registerHandlers(WebServer& webserver, Catalog& catalog)
 {
     static Context context{
         .webserver = webserver,
@@ -45,12 +49,6 @@ void rest::registerCatalog(WebServer& webserver, Catalog& catalog)
     );
 }
 
-static std::string catalogUri(const char* const requestUri)
-{
-    // omit the base uri
-    return std::string(requestUri + rest::uri_wildcard.length() - sizeof('*'));
-}
-
 enum class UriType {
     ILLEGAL,
     FOLDER,
@@ -65,6 +63,10 @@ UriType uriType(const std::string uri)
     if (uri.contains("../"))
         return UriType::ILLEGAL;
 
+    // disallow fragments
+    if (uri.contains("#"))
+        return UriType::ILLEGAL;
+
     if (uri.ends_with("?icon"))
         return UriType::ICON;
 
@@ -77,30 +79,76 @@ UriType uriType(const std::string uri)
         return UriType::FILE;
 }
 
+static std::string catalogPath(const char* const requestUri)
+{
+    // omit the base uri
+    auto path =  std::string(requestUri + rest::catalog::uri_wildcard.length() - sizeof('*'));
+    // remove query
+    auto pos = path.find('?');
+    path.erase(pos);
+    // remove fragment
+    pos = path.find('#');
+    path.erase(pos);
+
+    // decode http tokens (in-place)
+    rest::httpDecode(path);
+
+    return path;
+}
+
+
 esp_err_t GET(httpd_req_t* const request)
 {
     const Context& context = reinterpret_cast<const Context&>(request->user_ctx);
-    const auto uri = catalogUri(request->uri);
-    switch(uriType(uri))
+    switch(uriType(request->uri))
     {
-        case UriType::FILE: {
-            if (! context.catalog.exists(uri))
+        case UriType::FOLDER: {
+            const auto path = catalogPath(request->uri);
+            ESP_LOGD(TAG, "handling %s for FOLDER %s", request->uri, path.c_str());
+
+            if (! context.catalog.hasFolder(path))
                 return httpd_resp_send_404(request);
 
-            // set headers
-            auto timestamp = context.catalog.timestamp(uri);
-            std::tm tm;
-            gmtime_r(&timestamp, &tm);
-            char headerField[30];
-            strftime(headerField, sizeof(headerField), rest::ISO_8601_FORMAT, &tm);
-            httpd_resp_set_hdr(request, "X-FileTimestamp", headerField);
+            // send the data
+            auto data = context.catalog.folderInfo(path);
 
-            // send the data 
-            auto fis = context.catalog.readContent(uri);
-            if (! fis.is_open())
-                return httpd_resp_send_err(request, HTTPD_408_REQ_TIMEOUT, "Too many requests (try again)");
-            return rest::sendOctetStream(request, fis);
+
+            // auto response = cJSON_CreateObject();
+            // auto subfolders = cJSON_CreateArray();
+            // auto files = cJSON_CreateArray();
+            // for(const auto& entry : context.catalog.folderIterator(uri))
+            // {
+            //     if (entry.path().filename().string().front() == Catalog::HIDDEN_PREFIX)
+            //         // ignore hidden files
+            //         continue;
+
+            //     if (entry.is_directory())
+            //     {
+            //         cJSON_AddItemToArray(subfolders,
+            //             cJSON_CreateString(entry.path().parent_path().filename().c_str()));
+            //     }
+            // }
+            return ESP_FAIL;
         }
+
+        // case UriType::FILE: {
+        //     if (! context.catalog.hasContent(uri))
+        //         return httpd_resp_send_404(request);
+
+        //     // set headers
+        //     auto timestamp = context.catalog.timestamp(uri);
+        //     std::tm tm;
+        //     gmtime_r(&timestamp, &tm);
+        //     char headerField[30];
+        //     strftime(headerField, sizeof(headerField), rest::ISO_8601_FORMAT, &tm);
+        //     httpd_resp_set_hdr(request, "X-FileTimestamp", headerField);
+
+        //     // send the data 
+        //     auto fis = context.catalog.readContent(uri);
+        //     if (! fis.is_open())
+        //         return httpd_resp_send_err(request, HTTPD_408_REQ_TIMEOUT, "Too many requests (try again)");
+        //     return rest::sendOctetStream(request, fis);
+        // }
 
         // TODO
         default: return ESP_FAIL;
@@ -109,34 +157,13 @@ esp_err_t GET(httpd_req_t* const request)
 
 esp_err_t PUT(httpd_req_t* const request)
 {
-    // const Context& context = reinterpret_cast<Context&>(request->user_ctx);
-    // const auto uri = catalogUri(request->uri);
-
-    // switch(uriType(uri))
-    // {
-    //     case UriType::FILE : {
-    //         const auto path = std::filesystem::path(uri).parent_path();
-    //         if (context.catalog.isLocked(path))
-    //         {
-
-    //         }
-    //         break;
-    //     }
-    //     // TODO
-    //     default: return ESP_FAIL;
-    // }
-
+    // TODO
     return ESP_FAIL;
 }
 
 esp_err_t DELETE(httpd_req_t* const request)
 {
-    // const Context& context = reinterpret_cast<Context&>(request->user_ctx);
-    const auto uri = catalogUri(request->uri);
-    switch(uriType(uri))
-    {
-        // TODO
-        default: return ESP_FAIL;
-    }
+    // TODO
+    return ESP_FAIL;
 }
 

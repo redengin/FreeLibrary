@@ -9,7 +9,11 @@ namespace rest {
 /// HTTP timestamp format
 static constexpr char ISO_8601_FORMAT[] = "%FT%T";
 
-static constexpr std::size_t CHUNK_SIZE = 1048;
+/// replaces HTTP tokens inplace
+void httpDecode(std::string& encoded);
+
+// static constexpr std::size_t CHUNK_SIZE = 1048;
+static constexpr std::size_t CHUNK_SIZE = 1450;
 esp_err_t sendOctetStream(
     httpd_req_t* const request,
     std::ifstream& fis

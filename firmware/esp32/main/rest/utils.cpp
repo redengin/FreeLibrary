@@ -2,6 +2,31 @@
 
 #include <esp_log.h>
 #include <memory>
+#include <algorithm>
+
+
+void rest::httpDecode(std::string& encoded)
+{
+    // replace '+' with space
+    std::replace(encoded.begin(), encoded.end(), '+', ' ');
+
+    // translate UTF-8
+    for(auto pos = encoded.find('%'); pos != std::string::npos; pos = encoded.find(pos+1, '%'))
+    {
+        if (encoded.length() >= (pos + 2))
+        {
+            const char utf8[] = {encoded[pos+1], encoded[pos+2]};
+            const char s[] = { static_cast<char>(std::stoi(utf8, 0, 16)), '\0' };
+            encoded.replace(pos, 3, s);
+        }
+        else {
+            // illegal uri, dropping the remaining characters
+            encoded.erase(pos);
+            break;
+        }
+    }
+}
+
 
 esp_err_t rest::sendOctetStream(httpd_req_t* const request, std::ifstream& fis)
 {
