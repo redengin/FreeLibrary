@@ -11,25 +11,25 @@ public:
 
     Catalog(std::filesystem::path root);
 
-    /// @returns true if folder exists
-    bool hasFolder(const std::string& path) const;
+    /// @returns true if valid content reference (FOLDER or FILE)
+    static bool isValid(const std::filesystem::path& catalogpath);
 
-    typedef struct {
-        std::string name;
-        std::size_t size;
-        std::time_t timestamp;
-        std::optional<std::string> title;
-        bool hasIcon;
-    } ContentInfo;
-    typedef struct {
-        bool isLocked;
-        std::vector<std::string> subfolders;
-        std::vector<ContentInfo> contents;
-    } FolderInfo;
-    FolderInfo folderInfo(const std::string& path) const;
+    /// @returns true if folder exists
+    bool hasFolder(const std::string& folderpath) const;
+
+    std::filesystem::directory_iterator folderIterator(const std::string folderpath) const;
+
+    /// @returns true if folder is admin only
+    bool isLocked(const std::string& folderpath) const;
+
+    std::optional<std::string> getTitle(const std::string& filepath) const;
+
+    bool hasIcon(const std::string& filepath) const;
 
     /// @returns true if content exists
-    bool hasContent(const std::string& filepath) const;
+    bool hasFile(const std::string& filepath) const;
+
+    std::time_t timestamp(const std::string& filepath) const;
 
     std::ifstream readContent(const std::string& filepath) const;
 
@@ -49,7 +49,6 @@ private:
 
     static bool isHidden(const std::filesystem::path& path);
     bool isLocked(const std::filesystem::path& path) const;
-    std::time_t timestamp(const std::string& filepath) const;
     std::string title(const std::filesystem::path& filepath) const;
     bool hasIcon(const std::filesystem::path& filepath) const;
 };

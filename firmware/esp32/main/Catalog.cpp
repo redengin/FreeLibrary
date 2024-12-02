@@ -25,44 +25,62 @@ Catalog::Catalog(const std::filesystem::path _root)
     }
 }
 
-bool Catalog::hasFolder(const std::string& path) const
+bool Catalog::isValid(const std::filesystem::path& catalogpath)
 {
-    if (isHidden(path))
+    // iterate through path segments
+    for(const auto& i : catalogpath)
+    {
+        // ignore hidden files/folders and relative paths
+        if (i.c_str()[0] == HIDDEN_PREFIX)
+            return false;
+
+    }
+    return true;
+}
+
+bool Catalog::hasFolder(const std::string& folderpath) const
+{
+    if (! isValid(folderpath))
         return false;
 
     std::error_code ec;
-    return std::filesystem::is_directory(root/path, ec);
+    return std::filesystem::is_directory(root/folderpath, ec);
 }
 
-Catalog::FolderInfo Catalog::folderInfo(const std::string& _path) const
+std::filesystem::directory_iterator Catalog::folderIterator(const std::string folderpath) const
 {
-    auto path = root/_path;
-
-    FolderInfo ret;
-    // set the lock info
-    ret.isLocked = isLocked(path);
-    for(auto& entry : std::filesystem::directory_iterator(path))
-    {
-        if (isHidden(entry.path()))
-            continue;
-        if (entry.is_directory()) ret.subfolders.push_back(entry.path().filename());
-        if (entry.is_regular_file()) 
-        {
-            // ret.contents.push_back(contentInfo);
-            ret.contents.emplace_back(
-                entry.path().filename(),
-                entry.file_size(),
-                entry.last_write_time().time_since_epoch().count(),
-                title(entry.path()),
-                hasIcon(entry.path())
-            );
-        }
-    }
-
-    return ret;
+    return std::filesystem::directory_iterator(root/folderpath);
 }
 
-bool Catalog::hasContent(const std::string& filepath) const
+
+bool Catalog::isLocked(const std::string& folderpath) const
+{
+    if (! isValid(folderpath))
+        return true;
+
+    std::error_code ec;
+    return std::filesystem::is_regular_file(root/folderpath/LOCKED_FILENAME, ec);
+}
+
+std::optional<std::string> Catalog::getTitle(const std::string& filepath) const
+{
+    if (! isValid(filepath))
+        return std::nullopt;
+
+    // TODO
+    return std::nullopt;
+}
+
+bool Catalog::hasIcon(const std::string& filepath) const
+{
+    if (! isValid(filepath))
+        return false;
+
+    // TODO
+    return false;
+}
+
+bool Catalog::hasFile(const std::string& filepath) const
 {
     if (isHidden(filepath))
         return false;
@@ -71,16 +89,26 @@ bool Catalog::hasContent(const std::string& filepath) const
     return std::filesystem::is_regular_file(root/filepath, ec);
 }
 
+std::time_t Catalog::timestamp(const std::string& filepath) const
+{
+    const std::filesystem::path path{root/filepath};
+
+    std::error_code ec;
+    auto timestamp = std::filesystem::last_write_time(path, ec);
+    if (ec)
+        ESP_LOGW(TAG, "last_write_time() failed for \"%s\" [%s]", path.c_str(), ec.message().c_str());
+
+    return timestamp.time_since_epoch().count();
+}
+
 
 std::ifstream Catalog::readContent(const std::string& filepath) const
 {
-    // FIXME
-    // // validate filename
-    // if(isValidContentFilepath(filepath))
-    //     return std::ifstream(root/filepath, std::ios_base::in | std::ios_base::binary);
-    // else
-    //     // return a null stream
+    if (isHidden(filepath))
+        // return a null stream
         return std::ifstream();
+
+    return std::ifstream(root/filepath, std::ios_base::in | std::ios_base::binary);
 }
 
 
@@ -102,18 +130,6 @@ bool Catalog::isHidden(const std::filesystem::path& filepath)
 bool Catalog::isLocked(const std::filesystem::path& path) const
 {
     return std::filesystem::exists(path/LOCKED_FILENAME);
-}
-
-std::time_t Catalog::timestamp(const std::string& filepath) const
-{
-    const std::filesystem::path path{root/filepath};
-
-    std::error_code ec;
-    auto timestamp = std::filesystem::last_write_time(path, ec);
-    if (ec)
-        ESP_LOGW(TAG, "last_write_time() failed for \"%s\" [%s]", path.c_str(), ec.message().c_str());
-
-    return timestamp.time_since_epoch().count();
 }
 
 

@@ -3,6 +3,7 @@
 #include <esp_log.h>
 #include <memory>
 #include <algorithm>
+#include <ctime>
 
 
 void rest::httpDecode(std::string& encoded)
@@ -13,11 +14,15 @@ void rest::httpDecode(std::string& encoded)
     // translate UTF-8
     for(auto pos = encoded.find('%'); pos != std::string::npos; pos = encoded.find(pos+1, '%'))
     {
-        if (encoded.length() >= (pos + 2))
+        if ((pos + 2) <= encoded.length())
         {
             const char utf8[] = {encoded[pos+1], encoded[pos+2]};
-            const char s[] = { static_cast<char>(std::stoi(utf8, 0, 16)), '\0' };
-            encoded.replace(pos, 3, s);
+            const char actualChar = static_cast<char>(std::stoi(utf8, 0, 16));
+            if (actualChar)
+                encoded.replace(pos, 3, 1, actualChar);
+            else
+                // invalid char, erase it instead
+                encoded.erase(pos, 3);
         }
         else {
             // illegal uri, dropping the remaining characters
@@ -26,6 +31,16 @@ void rest::httpDecode(std::string& encoded)
         }
     }
 }
+
+void rest::timestamp(const time_t& timestamp, char buffer[20])
+{
+    std::tm tm;
+    gmtime_r(&timestamp, &tm);
+    strftime(buffer, sizeof(buffer), rest::ISO_8601_FORMAT, &tm);
+}
+
+
+
 
 
 esp_err_t rest::sendOctetStream(httpd_req_t* const request, std::ifstream& fis)
