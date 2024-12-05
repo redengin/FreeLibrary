@@ -41,6 +41,8 @@ WebServer::WebServer(const size_t max_sockets)
         httpConfig.uri_match_fn = httpd_uri_match_wildcard;
         // maximize the availability to users
         httpConfig.max_open_sockets = max_sockets - httpsConfig.httpd.max_open_sockets;
+        // increase stack size
+        httpConfig.stack_size = 10 * 1024;
         ESP_ERROR_CHECK(httpd_start(&httpHandle, &httpConfig));
         // upon 404, redirect to index
         ESP_ERROR_CHECK(httpd_register_err_handler(httpHandle, HTTPD_404_NOT_FOUND, redirect));

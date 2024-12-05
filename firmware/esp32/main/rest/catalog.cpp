@@ -76,8 +76,8 @@ esp_err_t handler(httpd_req_t* request)
         {
             switch(request->method)
             {
-                // TODO case HTTP_GET : return GET_FOLDER(request);
-                // TODO case HTTP_DELETE: return DELETE_FOLDER(request);
+                case HTTP_GET : return GET_FOLDER(request);
+                case HTTP_DELETE: return DELETE_FOLDER(request);
                 default:
                     return ILLEGAL_REQUEST(request);
             }
@@ -87,9 +87,9 @@ esp_err_t handler(httpd_req_t* request)
         {
             switch(request->method)
             {
-                // TODO case HTTP_GET : return GET_FILE(request);
-                // TODO case HTTP_PUT: return PUT_FILE(request);
-                // TODO case HTTP_DELETE: return DELETE_FILE(request);
+                case HTTP_GET : return GET_FILE(request);
+                case HTTP_PUT: return PUT_FILE(request);
+                case HTTP_DELETE: return DELETE_FILE(request);
 
                 default:
                     return ILLEGAL_REQUEST(request);
@@ -100,8 +100,8 @@ esp_err_t handler(httpd_req_t* request)
         {
             switch(request->method)
             {
-                // TODO case HTTP_GET : return GET_ICON(request);
-                // TODO case HTTP_PUT: return PUT_ICON(request);
+                case HTTP_GET : return GET_ICON(request);
+                case HTTP_PUT: return PUT_ICON(request);
 
                 default:
                     return ILLEGAL_REQUEST(request);
@@ -112,7 +112,7 @@ esp_err_t handler(httpd_req_t* request)
         {
             switch(request->method)
             {
-                // TODO case HTTP_PUT: return PUT_TITLE(request);
+                case HTTP_PUT: return PUT_TITLE(request);
 
                 default:
                     return ILLEGAL_REQUEST(request);
@@ -131,11 +131,6 @@ static esp_err_t ILLEGAL_REQUEST(httpd_req_t* request)
 {
     return httpd_resp_send_err(request, HTTPD_400_BAD_REQUEST, nullptr);
 }
-
-
-
-
-
 
 static std::string catalogPath(const char* const requestUri)
 {
@@ -158,10 +153,10 @@ esp_err_t GET_FOLDER(httpd_req_t* const request)
 {
     const Context& context = reinterpret_cast<const Context&>(request->user_ctx);
     const auto folderpath = catalogPath(request->uri);
-    ESP_LOGD(TAG, "handling request[%s] for FOLDER [%s]", request->uri, folderpath.c_str());
+    ESP_LOGI(TAG, "handling request[%s] for FOLDER [/%s]", request->uri, folderpath.c_str());
 
-    // if (! context.catalog.hasFolder(folderpath))
-    //     return httpd_resp_send_404(request);
+    if (! context.catalog.hasFolder(folderpath))
+        return httpd_resp_send_404(request);
 
     // // send the data
     // auto subfolders = cJSON_CreateArray();
