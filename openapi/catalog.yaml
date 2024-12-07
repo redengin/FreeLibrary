@@ -1,7 +1,7 @@
 # for visualization use vscode:Preview Swagger
 openapi: 3.1.0
 info:
-  title: Little Free Library
+  title: Free Library
   description: Catalog REST API
   version: 0.0.0
 

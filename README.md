@@ -1,11 +1,11 @@
-Little Free Library
+Free Library
 ================================================================================
 The [Little Free Library][lfl] organization expands access to information.
 
 
-Creating a Digital Little Free Library
+Creating a Digital Version
 --------------------------------------------------------------------------------
-Detailed instructions are provided on the [wiki](https://github.com/redengin/LittleFreeLibrary/wiki) using low-cost hardware.
+Detailed instructions are provided on the [wiki](https://github.com/redengin/FreeLibrary/wiki) using low-cost hardware.
  
 
 
