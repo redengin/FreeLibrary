@@ -13,7 +13,7 @@ void app_main(void)
     size_t available_sockets_count = CONFIG_LWIP_MAX_SOCKETS;
 
     // create the access point
-    static WifiAccessPoint wap;
+    static WifiAccessPoint wap("Free Library");
     // account for DNS socket
     --available_sockets_count;
 
