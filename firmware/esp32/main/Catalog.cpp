@@ -25,37 +25,41 @@ Catalog::Catalog(const std::filesystem::path _root)
     }
 }
 
-bool Catalog::isValid(const std::filesystem::path& catalogpath)
-{
-    // iterate through path segments
-    for(const auto& i : catalogpath)
-    {
-        // ignore hidden files/folders and relative paths
-        if (i.c_str()[0] == HIDDEN_PREFIX)
-            return false;
-
-    }
-    return true;
-}
-
 bool Catalog::hasFolder(const std::string& folderpath) const
 {
-    if (! isValid(folderpath))
+    if (isHidden(folderpath))
         return false;
 
     std::error_code ec;
     return std::filesystem::is_directory(root/folderpath, ec);
 }
 
-std::filesystem::directory_iterator Catalog::folderIterator(const std::string folderpath) const
+
+std::vector<std::filesystem::directory_entry> Catalog::entries(const std::string folderpath) const
 {
-    return std::filesystem::directory_iterator(root/folderpath);
+    std::vector<std::filesystem::directory_entry> ret;
+
+    for (auto& entry : std::filesystem::directory_iterator(root/folderpath))
+    {
+        // skip over hidden entries
+        if (isHidden(entry.path()))
+            continue;
+
+        ret.push_back(entry);
+    }
+
+    return ret;
 }
+
+// std::filesystem::directory_iterator Catalog::folderIterator(const std::string folderpath) const
+// {
+//     return std::filesystem::directory_iterator(root/folderpath);
+// }
 
 
 bool Catalog::isLocked(const std::string& folderpath) const
 {
-    if (! isValid(folderpath))
+    if (! isHidden(folderpath))
         return true;
 
     std::error_code ec;
@@ -64,7 +68,7 @@ bool Catalog::isLocked(const std::string& folderpath) const
 
 std::optional<std::string> Catalog::getTitle(const std::string& filepath) const
 {
-    if (! isValid(filepath))
+    if (! isHidden(filepath))
         return std::nullopt;
 
     // TODO
@@ -73,7 +77,7 @@ std::optional<std::string> Catalog::getTitle(const std::string& filepath) const
 
 bool Catalog::hasIcon(const std::string& filepath) const
 {
-    if (! isValid(filepath))
+    if (! isHidden(filepath))
         return false;
 
     // TODO
@@ -121,10 +125,10 @@ bool Catalog::isHidden(const std::filesystem::path& filepath)
     {
         // ignore hidden files/folders and relative paths
         if (*(i.c_str()) == HIDDEN_PREFIX)
-            return false;
+            return true;
 
     }
-    return true;
+    return false;
 }
 
 bool Catalog::isLocked(const std::filesystem::path& path) const

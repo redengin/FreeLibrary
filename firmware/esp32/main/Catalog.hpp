@@ -11,13 +11,11 @@ public:
 
     Catalog(std::filesystem::path root);
 
-    /// @returns true if valid content reference (FOLDER or FILE)
-    static bool isValid(const std::filesystem::path& catalogpath);
-
     /// @returns true if folder exists
     bool hasFolder(const std::string& folderpath) const;
 
-    std::filesystem::directory_iterator folderIterator(const std::string folderpath) const;
+    std::vector<std::filesystem::directory_entry> entries(const std::string folderpath) const;
+    // std::filesystem::directory_iterator folderIterator(const std::string folderpath) const;
 
     /// @returns true if folder is admin only
     bool isLocked(const std::string& folderpath) const;
@@ -32,6 +30,7 @@ public:
     std::time_t timestamp(const std::string& filepath) const;
 
     std::ifstream readContent(const std::string& filepath) const;
+
 
 private:
     const std::filesystem::path root;

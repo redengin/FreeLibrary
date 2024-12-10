@@ -8,9 +8,10 @@ using rest::catalog::TAG;
 
 struct Context {
     WebServer& webserver;        
-    Catalog& catalog;        
+    Catalog& catalog;
 };
 extern "C" esp_err_t handler(httpd_req_t*);
+
 void rest::catalog::registerHandlers(WebServer& webserver, Catalog& catalog)
 {
     static Context context{
@@ -70,6 +71,10 @@ static esp_err_t PUT_TITLE(httpd_req_t* const request);
 
 esp_err_t handler(httpd_req_t* request)
 {
+    // auto context = reinterpret_cast<Context*>(request->user_ctx);
+    // ESP_LOGI(TAG, "dummy is %s", context->catalog.root.c_str());
+    // return ILLEGAL_REQUEST(request);
+
     switch(uriType(request->uri))
     {
         case UriType::FOLDER :
@@ -151,58 +156,55 @@ static std::string catalogPath(const char* const requestUri)
 
 esp_err_t GET_FOLDER(httpd_req_t* const request)
 {
-    const Context& context = reinterpret_cast<const Context&>(request->user_ctx);
+    auto context = reinterpret_cast<Context*>(request->user_ctx);
     const auto folderpath = catalogPath(request->uri);
     ESP_LOGI(TAG, "handling request[%s] for FOLDER [/%s]", request->uri, folderpath.c_str());
 
-    if (! context.catalog.hasFolder(folderpath))
+    if (! context->catalog.hasFolder(folderpath))
         return httpd_resp_send_404(request);
 
-    // // send the data
-    // auto subfolders = cJSON_CreateArray();
-    // auto files = cJSON_CreateArray();
-    // for (auto& entry : context.catalog.folderIterator(folderpath))
-    // {
-    //     if (Catalog::isValid(entry.path()))
-    //     {
-    //         if (entry.is_directory())
-    //             cJSON_AddItemToArray(subfolders, cJSON_CreateString(entry.path().filename().c_str()));
+    // send the data
+    auto subfolders = cJSON_CreateArray();
+    auto files = cJSON_CreateArray();
+    for (auto& entry : context->catalog.entries(folderpath))
+    {
+        if (entry.is_directory())
+            cJSON_AddItemToArray(subfolders, cJSON_CreateString(entry.path().filename().c_str()));
 
-    //         else if (entry.is_regular_file())
-    //         {
-    //             auto fileInfo = cJSON_CreateObject();
-    //             cJSON_AddItemToObject(fileInfo, "name", cJSON_CreateString(entry.path().filename().c_str()));
-    //             cJSON_AddNumberToObject(fileInfo, "size", entry.file_size());
+        else if (entry.is_regular_file())
+        {
+            auto fileInfo = cJSON_CreateObject();
+            cJSON_AddItemToObject(fileInfo, "name", cJSON_CreateString(entry.path().filename().c_str()));
+            cJSON_AddNumberToObject(fileInfo, "size", entry.file_size());
 
-    //             auto fileTime = entry.last_write_time().time_since_epoch().count();
-    //             char buffer[20];
-    //             rest::timestamp(fileTime, buffer);
-    //             cJSON_AddItemToObject(fileInfo, "timestamp", cJSON_CreateString(buffer));
+            auto fileTime = entry.last_write_time().time_since_epoch().count();
+            char buffer[20];
+            rest::timestamp(fileTime, buffer);
+            cJSON_AddItemToObject(fileInfo, "timestamp", cJSON_CreateString(buffer));
 
-    //             auto filepath = (std::filesystem::path(folderpath) / entry.path().filename()).string();
-    //             auto title = context.catalog.getTitle(filepath);
-    //             if (title)
-    //                 cJSON_AddItemToObject(fileInfo, "timestamp", cJSON_CreateString(title.value().c_str()));
+            auto filepath = (std::filesystem::path(folderpath) / entry.path().filename()).string();
+            auto title = context->catalog.getTitle(filepath);
+            if (title)
+                cJSON_AddItemToObject(fileInfo, "timestamp", cJSON_CreateString(title.value().c_str()));
 
-    //             cJSON_AddBoolToObject(fileInfo, "hasIcon", context.catalog.hasIcon(filepath));
+            cJSON_AddBoolToObject(fileInfo, "hasIcon", context->catalog.hasIcon(filepath));
 
-    //             cJSON_AddItemToArray(files, fileInfo);
-    //         }
-    //     }
-    // }
-    // auto response = cJSON_CreateObject();
-    // cJSON_AddBoolToObject(response, "locked", context.catalog.isLocked(folderpath));
-    // cJSON_AddItemToObject(response, "subfolder", subfolders);
-    // cJSON_AddItemToObject(response, "files", files);
+            cJSON_AddItemToArray(files, fileInfo);
+        }
+    }
+    auto response = cJSON_CreateObject();
+    cJSON_AddBoolToObject(response, "locked", context->catalog.isLocked(folderpath));
+    cJSON_AddItemToObject(response, "subfolders", subfolders);
+    cJSON_AddItemToObject(response, "files", files);
 
-    // char *const data = cJSON_PrintUnformatted(response);
-    // httpd_resp_set_type(request, "application/json");
-    // httpd_resp_send(request, data, strlen(data));
+    char *const data = cJSON_PrintUnformatted(response);
+    httpd_resp_set_type(request, "application/json");
+    auto ret = httpd_resp_send(request, data, strlen(data));
 
-    // cJSON_Delete(response);
-    // cJSON_free(data);
+    cJSON_Delete(response);
+    cJSON_free(data);
 
-    return ESP_OK;
+    return ret;
 }
 
 esp_err_t DELETE_FOLDER(httpd_req_t* const request)
