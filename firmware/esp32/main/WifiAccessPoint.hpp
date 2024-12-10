@@ -9,7 +9,7 @@ public:
     /// @brief Creates the Open Wifi Access Point
     /// @post call publish()
     /// @param ssid 
-    WifiAccessPoint(const std::string ssid = "Little Free Library");
+    WifiAccessPoint(const std::string ssid = "Free Library");
 
     /// @brief change the published SSID
     void setSsid(const std::string ssid);
