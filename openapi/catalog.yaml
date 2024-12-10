@@ -77,10 +77,10 @@ paths:
           description: OK
         "404":
           description: Folder Not Found
-        "409":
-          description: Folder is not empty
         "401":
           $ref: '#/components/responses/adminCurated'
+        "409":
+          description: Folder is not empty
         "429":
           description: Client should try again
 
@@ -102,7 +102,7 @@ paths:
         "200":
           description: server is sending the file
           headers:
-            X-FileTimestamp:
+            X-FileTimeStamp:
               description: timestamp of file [ISO 8601 Z (aka UTC time)]
               schema:
                 type: string

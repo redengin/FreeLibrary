@@ -71,10 +71,6 @@ static esp_err_t PUT_TITLE(httpd_req_t* const request);
 
 esp_err_t handler(httpd_req_t* request)
 {
-    // auto context = reinterpret_cast<Context*>(request->user_ctx);
-    // ESP_LOGI(TAG, "dummy is %s", context->catalog.root.c_str());
-    // return ILLEGAL_REQUEST(request);
-
     switch(uriType(request->uri))
     {
         case UriType::FOLDER :
@@ -175,8 +171,11 @@ esp_err_t GET_FOLDER(httpd_req_t* const request)
         {
             auto fileInfo = cJSON_CreateObject();
             cJSON_AddItemToObject(fileInfo, "name", cJSON_CreateString(entry.path().filename().c_str()));
+
+            // FIXME file size is incorrect
             cJSON_AddNumberToObject(fileInfo, "size", entry.file_size());
 
+            // FIXME timestamp is incorrect
             auto fileTime = entry.last_write_time().time_since_epoch().count();
             char buffer[20];
             rest::timestamp(fileTime, buffer);
@@ -209,44 +208,140 @@ esp_err_t GET_FOLDER(httpd_req_t* const request)
 
 esp_err_t DELETE_FOLDER(httpd_req_t* const request)
 {
-    // TODO
-    return ESP_FAIL;
+    auto context = reinterpret_cast<Context*>(request->user_ctx);
+    const auto folderpath = catalogPath(request->uri);
+    ESP_LOGI(TAG, "handling request[%s] for DELETE FOLDER [/%s]", request->uri, folderpath.c_str());
+
+    if (! context->catalog.hasFolder(folderpath))
+        return httpd_resp_send_404(request);
+
+    if (context->catalog.isLocked(folderpath))
+    {
+        // TODO determine if caller has admin credentials
+        return httpd_resp_send_err(request, HTTPD_401_UNAUTHORIZED, "folder is locked by admin");
+    }
+
+    if (context->catalog.removeFolder(folderpath))
+        return httpd_resp_sendstr(request, "OK");
+    else
+        return httpd_resp_send_custom_err(request, "409 - Directory not empty", "failed");
 }
 
 esp_err_t GET_FILE(httpd_req_t* const request)
 {
-    // TODO
-    return ESP_FAIL;
+    auto context = reinterpret_cast<Context*>(request->user_ctx);
+    const auto filepath = catalogPath(request->uri);
+    ESP_LOGI(TAG, "handling request[%s] for GET FILE [/%s]", request->uri, filepath.c_str());
+
+    if (! context->catalog.hasFile(filepath))
+        return httpd_resp_send_404(request);
+
+    // create a chunk buffer
+    std::unique_ptr<char[]> buf(new char[rest::CHUNK_SIZE]);
+    if (! buf)
+        return httpd_resp_send_custom_err(request, "408 - Too many requests", "try-again");
+
+    // set timestamp header
+    auto timestamp = context->catalog.timestamp(filepath);
+    char buffer[20];
+    rest::timestamp(timestamp, buffer);
+    httpd_resp_set_hdr(request, "X-FileTimeStamp", buffer);
+
+    auto fis = context->catalog.readContent(filepath);
+    return rest::sendOctetStream(request, fis);
 }
 
 esp_err_t PUT_FILE(httpd_req_t* const request)
 {
-    // TODO
+    auto context = reinterpret_cast<Context*>(request->user_ctx);
+    const auto filepath = catalogPath(request->uri);
+    ESP_LOGI(TAG, "handling request[%s] for PUT FILE [/%s]", request->uri, filepath.c_str());
+
+    if (context->catalog.isLocked(filepath))
+    {
+        // TODO determine if caller has admin credentials
+        return httpd_resp_send_err(request, HTTPD_401_UNAUTHORIZED, "folder is locked by admin");
+    }
+
+    // FIXME implement
     return ESP_FAIL;
 }
 
 esp_err_t DELETE_FILE(httpd_req_t* const request)
 {
-    // TODO
-    return ESP_FAIL;
+    auto context = reinterpret_cast<Context*>(request->user_ctx);
+    const auto filepath = catalogPath(request->uri);
+    ESP_LOGI(TAG, "handling request[%s] for DELETE FILE [/%s]", request->uri, filepath.c_str());
+
+    if (! context->catalog.hasFile(filepath))
+        return httpd_resp_send_404(request);
+
+    if (context->catalog.isLocked(filepath))
+    {
+        // TODO determine if caller has admin credentials
+        return httpd_resp_send_err(request, HTTPD_401_UNAUTHORIZED, "folder is locked by admin");
+    }
+
+    if (context->catalog.removeFile(filepath))
+        return httpd_resp_sendstr(request, "OK");
+
+    return httpd_resp_send_err(request, HTTPD_500_INTERNAL_SERVER_ERROR, "folder is locked by admin");
 }
 
 esp_err_t GET_ICON(httpd_req_t* const request)
 {
-    // TODO
-    return ESP_FAIL;
+    auto context = reinterpret_cast<Context*>(request->user_ctx);
+    const auto filepath = catalogPath(request->uri);
+    ESP_LOGI(TAG, "handling request[%s] for PUT ICON [/%s]", request->uri, filepath.c_str());
+
+    if (! context->catalog.hasFile(filepath))
+        return httpd_resp_send_404(request);
+
+    // create a chunk buffer
+    std::unique_ptr<char[]> buf(new char[rest::CHUNK_SIZE]);
+    if (! buf)
+        return httpd_resp_send_custom_err(request, "408 - Too many requests", "try-again");
+
+    auto fis = context->catalog.readIcon(filepath);
+    return rest::sendOctetStream(request, fis);
 }
 
 
 esp_err_t PUT_ICON(httpd_req_t* const request)
 {
-    // TODO
+    auto context = reinterpret_cast<Context*>(request->user_ctx);
+    const auto filepath = catalogPath(request->uri);
+    ESP_LOGI(TAG, "handling request[%s] for PUT ICON [/%s]", request->uri, filepath.c_str());
+
+    if (! context->catalog.hasFile(filepath))
+        return httpd_resp_send_404(request);
+
+    if (context->catalog.isLocked(filepath))
+    {
+        // TODO determine if caller has admin credentials
+        return httpd_resp_send_err(request, HTTPD_401_UNAUTHORIZED, "folder is locked by admin");
+    }
+
+    // FIXME implement
     return ESP_FAIL;
 }
 
 esp_err_t PUT_TITLE(httpd_req_t* const request)
 {
-    // TODO
+    auto context = reinterpret_cast<Context*>(request->user_ctx);
+    const auto filepath = catalogPath(request->uri);
+    ESP_LOGI(TAG, "handling request[%s] for PUT ICON [/%s]", request->uri, filepath.c_str());
+
+    if (! context->catalog.hasFile(filepath))
+        return httpd_resp_send_404(request);
+
+    if (context->catalog.isLocked(filepath))
+    {
+        // TODO determine if caller has admin credentials
+        return httpd_resp_send_err(request, HTTPD_401_UNAUTHORIZED, "folder is locked by admin");
+    }
+
+    // FIXME implement
     return ESP_FAIL;
 }
 

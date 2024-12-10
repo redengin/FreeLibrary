@@ -34,7 +34,6 @@ bool Catalog::hasFolder(const std::string& folderpath) const
     return std::filesystem::is_directory(root/folderpath, ec);
 }
 
-
 std::vector<std::filesystem::directory_entry> Catalog::entries(const std::string folderpath) const
 {
     std::vector<std::filesystem::directory_entry> ret;
@@ -51,16 +50,12 @@ std::vector<std::filesystem::directory_entry> Catalog::entries(const std::string
     return ret;
 }
 
-// std::filesystem::directory_iterator Catalog::folderIterator(const std::string folderpath) const
-// {
-//     return std::filesystem::directory_iterator(root/folderpath);
-// }
-
-
 bool Catalog::isLocked(const std::string& folderpath) const
 {
-    if (! isHidden(folderpath))
+    if (isHidden(folderpath))
         return true;
+
+    // TODO assert that parents are not locked
 
     std::error_code ec;
     return std::filesystem::is_regular_file(root/folderpath/LOCKED_FILENAME, ec);
@@ -68,21 +63,43 @@ bool Catalog::isLocked(const std::string& folderpath) const
 
 std::optional<std::string> Catalog::getTitle(const std::string& filepath) const
 {
-    if (! isHidden(filepath))
+    if (isHidden(filepath))
         return std::nullopt;
 
-    // TODO
+    auto parentpath = std::filesystem::path(filepath).parent_path();
+    auto filename = std::filesystem::path(filepath).filename().string();
+    auto titlefilename = filename.insert(0, TITLE_PREFIX);
+    auto titlepath = root/parentpath/titlefilename;
+    if (std::filesystem::is_regular_file(titlepath))
+    {
+        std::ifstream ifs(titlepath);
+        std::stringstream ss; 
+        ss << ifs.rdbuf();
+        return ss.str();
+    }
+
+    // no title file
     return std::nullopt;
 }
 
 bool Catalog::hasIcon(const std::string& filepath) const
 {
-    if (! isHidden(filepath))
+    if (isHidden(filepath))
         return false;
 
     // TODO
     return false;
 }
+
+bool Catalog::removeFolder(const std::string& filepath) const
+{
+    if (isHidden(filepath))
+        return false;
+
+    // TODO
+    return false;
+}
+
 
 bool Catalog::hasFile(const std::string& filepath) const
 {
@@ -93,18 +110,11 @@ bool Catalog::hasFile(const std::string& filepath) const
     return std::filesystem::is_regular_file(root/filepath, ec);
 }
 
-std::time_t Catalog::timestamp(const std::string& filepath) const
+time_t Catalog::timestamp(const std::string& filepath) const
 {
-    const std::filesystem::path path{root/filepath};
-
-    std::error_code ec;
-    auto timestamp = std::filesystem::last_write_time(path, ec);
-    if (ec)
-        ESP_LOGW(TAG, "last_write_time() failed for \"%s\" [%s]", path.c_str(), ec.message().c_str());
-
-    return timestamp.time_since_epoch().count();
+    // FIXME
+    return 0;
 }
-
 
 std::ifstream Catalog::readContent(const std::string& filepath) const
 {
@@ -115,6 +125,25 @@ std::ifstream Catalog::readContent(const std::string& filepath) const
     return std::ifstream(root/filepath, std::ios_base::in | std::ios_base::binary);
 }
 
+std::ifstream Catalog::readIcon(const std::string& filepath) const
+{
+    if (isHidden(filepath))
+        // return a null stream
+        return std::ifstream();
+
+    // TODO return fis of icon
+    return std::ifstream();
+    // return std::ifstream(root/filepath, std::ios_base::in | std::ios_base::binary);
+}
+
+bool Catalog::removeFile(const std::string& filepath) const
+{
+    if (isHidden(filepath))
+        return false;
+
+    std::error_code ec;
+    return std::filesystem::remove(root/filepath, ec);
+}
 
 // PRIVATE
 //==============================================================================
@@ -129,37 +158,4 @@ bool Catalog::isHidden(const std::filesystem::path& filepath)
 
     }
     return false;
-}
-
-bool Catalog::isLocked(const std::filesystem::path& path) const
-{
-    return std::filesystem::exists(path/LOCKED_FILENAME);
-}
-
-
-std::string Catalog::title(const std::filesystem::path& filepath) const
-{
-    std::string title_filename = TITLE_PREFIX;
-    title_filename.append(filepath.filename());
-
-    auto titlePath = filepath.parent_path() / title_filename;
-    if (std::filesystem::is_regular_file(titlePath))
-    {
-        std::ifstream ifs(titlePath);
-        std::stringstream ss; 
-        ss << ifs.rdbuf();
-        return ss.str();
-    }
-
-    // no title file, return empty string
-    return "";
-}
-
-bool Catalog::hasIcon(const std::filesystem::path& filepath) const
-{
-    std::string icon_filename = ICON_PREFIX;
-    icon_filename.append(filepath.filename());
-
-    auto iconPath = filepath.parent_path() / icon_filename;
-    return std::filesystem::is_regular_file(iconPath);
 }
