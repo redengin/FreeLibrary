@@ -133,6 +133,11 @@ static esp_err_t ILLEGAL_REQUEST(httpd_req_t* request)
     return httpd_resp_send_err(request, HTTPD_400_BAD_REQUEST, nullptr);
 }
 
+static esp_err_t TOO_MANY_REQUESTS(httpd_req_t* request)
+{
+    return httpd_resp_send_custom_err(request, "429 Too many requests", "try-again");
+}
+
 static std::string catalogPath(const char* const requestUri)
 {
     // omit the base uri
@@ -215,6 +220,7 @@ esp_err_t DELETE_FOLDER(httpd_req_t* const request)
     if (! context->catalog.hasFolder(folderpath))
         return httpd_resp_send_404(request);
 
+    // FIXME should check if parent is also locked
     if (context->catalog.isLocked(folderpath))
     {
         // TODO determine if caller has admin credentials
@@ -239,13 +245,14 @@ esp_err_t GET_FILE(httpd_req_t* const request)
     // create a chunk buffer
     std::unique_ptr<char[]> buf(new char[rest::CHUNK_SIZE]);
     if (! buf)
-        return httpd_resp_send_custom_err(request, "408 - Too many requests", "try-again");
+        return TOO_MANY_REQUESTS(request);
 
     // set timestamp header
-    auto timestamp = context->catalog.timestamp(filepath);
-    char buffer[20];
-    rest::timestamp(timestamp, buffer);
-    httpd_resp_set_hdr(request, "X-FileTimeStamp", buffer);
+    // FIXME
+    // auto timestamp = context->catalog.timestamp(filepath);
+    // char buffer[20];
+    // rest::timestamp(timestamp, buffer);
+    // httpd_resp_set_hdr(request, rest::catalog::XFILETIMESTAMP, buffer);
 
     auto fis = context->catalog.readContent(filepath);
     return rest::sendOctetStream(request, fis);
@@ -257,14 +264,57 @@ esp_err_t PUT_FILE(httpd_req_t* const request)
     const auto filepath = catalogPath(request->uri);
     ESP_LOGI(TAG, "handling request[%s] for PUT FILE [/%s]", request->uri, filepath.c_str());
 
+    // must supply Content-Length header
+    if (request->content_len <= 0)
+        return httpd_resp_send_err(request, HTTPD_411_LENGTH_REQUIRED, nullptr);
+
+    char s_timestamp[20];
+    if (ESP_OK != httpd_req_get_hdr_value_str(request, rest::catalog::XFILETIMESTAMP, s_timestamp, sizeof(s_timestamp)))
+        return httpd_resp_send_custom_err(request, "412 X-FileTimeStamp required", "failed");
+
     if (context->catalog.isLocked(filepath))
     {
         // TODO determine if caller has admin credentials
         return httpd_resp_send_err(request, HTTPD_401_UNAUTHORIZED, "folder is locked by admin");
     }
 
-    // FIXME implement
-    return ESP_FAIL;
+    // receive the data
+    std::unique_ptr<char[]> buf(new char[rest::CHUNK_SIZE]);
+    if (buf == nullptr) return TOO_MANY_REQUESTS(request);
+    // auto timestamp = rest::timestamp(s_timestamp);
+    // auto inwork = context->catalog.newContent(filepath, request->content_len, timestamp);
+    // esp_err_t ret = ESP_OK;
+    // for (size_t remaining = request->content_len; remaining > 0;)
+    // {
+    //     const int received = httpd_req_recv(request, buf.get(), std::min(remaining, rest::CHUNK_SIZE));
+    //     if (received < 0)
+    //     {
+    //         ESP_LOGW(TAG, "PUT incomplete: %s [%d/%d]", request->uri,
+    //                  (request->content_len - remaining), request->content_len);
+    //         ret = ESP_FAIL;
+    //         break;
+    //     }
+    //     if (false == inwork.write(buf.get(), received))
+    //     {
+    //         ESP_LOGE(TAG, "PUT write failed: %s [%d/%d]", request->uri,
+    //                  (request->content_len - remaining), request->content_len);
+    //         ret = ESP_FAIL;
+    //         break;
+    //     }
+    //     remaining -= received;
+    // }
+
+    // if (ret == ESP_OK)
+    // {
+    //     // complete the file transaction
+    //     inwork.done();
+    //     // send an empty 200 response
+    //     return httpd_resp_send(request, nullptr, 0);
+    // }
+    // else
+    //     return httpd_resp_send_err(request, HTTPD_408_REQ_TIMEOUT, "Upload failed");
+    // FIXME
+    return ILLEGAL_REQUEST(request);
 }
 
 esp_err_t DELETE_FILE(httpd_req_t* const request)
@@ -344,82 +394,3 @@ esp_err_t PUT_TITLE(httpd_req_t* const request)
     // FIXME implement
     return ESP_FAIL;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-esp_err_t GET(httpd_req_t* const request)
-{
-    switch(uriType(request->uri))
-    {
-        case UriType::FOLDER: return GET_FOLDER(request);
-
-        // case UriType::FILE: {
-        //     const auto filepath = catalogPath(request->uri);
-        //     ESP_LOGD(TAG, "handling request[%s] for FILE [%s]", request->uri, filepath.c_str());
-
-        //     if (! context.catalog.hasFile(filepath))
-        //         return httpd_resp_send_404(request);
-
-        //     // set the headers
-        //     char buffer[20];
-        //     rest::timestamp(context.catalog.timestamp(filepath), buffer);
-        //     httpd_resp_set_hdr(request, "X-FileTimestamp", buffer);
-
-        //     // send the data
-        //     auto fis = context.catalog.readContent(filepath);
-        //     if (! fis.is_open())
-        //         return httpd_resp_send_err(request, HTTPD_408_REQ_TIMEOUT, "Too many requests (try again)");
-        //     return rest::sendOctetStream(request, fis);
-
-        //     // set headers
-        //     auto timestamp = context.catalog.timestamp(uri);
-        //     std::tm tm;
-        //     gmtime_r(&timestamp, &tm);
-        //     char headerField[30];
-        //     strftime(headerField, sizeof(headerField), rest::ISO_8601_FORMAT, &tm);
-        //     httpd_resp_set_hdr(request, "X-FileTimestamp", headerField);
-
-        default: return ESP_FAIL;
-    }
-}
-
-esp_err_t PUT(httpd_req_t* const request)
-{
-    // TODO
-    return ESP_FAIL;
-}
-
-esp_err_t DELETE(httpd_req_t* const request)
-{
-    // TODO
-    return ESP_FAIL;
-}
-

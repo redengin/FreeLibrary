@@ -122,6 +122,13 @@ paths:
           schema:
             type: integer
             description: size of file in bytes
+        - name: X-FileTimeStamp
+          in: header
+          required: true
+          description: timestamp of file
+          schema:
+              type: string
+              description: ISO 8601 Z (aka UTC time)
       requestBody:
         content:
           application/octet-stream: {}

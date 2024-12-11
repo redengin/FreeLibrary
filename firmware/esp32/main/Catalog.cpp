@@ -70,11 +70,15 @@ std::optional<std::string> Catalog::getTitle(const std::string& filepath) const
     auto filename = std::filesystem::path(filepath).filename().string();
     auto titlefilename = filename.insert(0, TITLE_PREFIX);
     auto titlepath = root/parentpath/titlefilename;
-    if (std::filesystem::is_regular_file(titlepath))
+    ESP_LOGI(TAG, "looking for title in %s", titlepath.c_str());
+
+    std::error_code ec;
+    if (std::filesystem::is_regular_file(titlepath, ec))
     {
         std::ifstream ifs(titlepath);
         std::stringstream ss; 
         ss << ifs.rdbuf();
+        ESP_LOGI(TAG, "found title [%s]", ss.str().c_str());
         return ss.str();
     }
 
@@ -87,8 +91,14 @@ bool Catalog::hasIcon(const std::string& filepath) const
     if (isHidden(filepath))
         return false;
 
-    // TODO
-    return false;
+    auto parentpath = std::filesystem::path(filepath).parent_path();
+    auto filename = std::filesystem::path(filepath).filename().string();
+    auto iconfilename = filename.insert(0, ICON_PREFIX);
+    auto iconpath = root/parentpath/iconfilename;
+    ESP_LOGI(TAG, "looking for icon in %s", iconpath.c_str());
+
+    std::error_code ec;
+    return std::filesystem::is_regular_file(iconpath, ec);
 }
 
 bool Catalog::removeFolder(const std::string& filepath) const
@@ -96,10 +106,9 @@ bool Catalog::removeFolder(const std::string& filepath) const
     if (isHidden(filepath))
         return false;
 
-    // TODO
-    return false;
+    std::error_code ec;
+    return std::filesystem::remove(root/filepath, ec);
 }
-
 
 bool Catalog::hasFile(const std::string& filepath) const
 {
@@ -110,10 +119,10 @@ bool Catalog::hasFile(const std::string& filepath) const
     return std::filesystem::is_regular_file(root/filepath, ec);
 }
 
-time_t Catalog::timestamp(const std::string& filepath) const
+std::filesystem::file_time_type Catalog::timestamp(const std::string& filepath) const
 {
-    // FIXME
-    return 0;
+    std::error_code ec;
+    return std::filesystem::last_write_time(root/filepath, ec);
 }
 
 std::ifstream Catalog::readContent(const std::string& filepath) const
@@ -131,9 +140,12 @@ std::ifstream Catalog::readIcon(const std::string& filepath) const
         // return a null stream
         return std::ifstream();
 
-    // TODO return fis of icon
-    return std::ifstream();
-    // return std::ifstream(root/filepath, std::ios_base::in | std::ios_base::binary);
+    auto parentpath = std::filesystem::path(filepath).parent_path();
+    auto filename = std::filesystem::path(filepath).filename().string();
+    auto iconfilename = filename.insert(0, ICON_PREFIX);
+    auto iconpath = root/parentpath/iconfilename;
+    ESP_LOGI(TAG, "looking for icon in %s", iconpath.c_str());
+    return std::ifstream(iconpath, std::ios_base::in | std::ios_base::binary);
 }
 
 bool Catalog::removeFile(const std::string& filepath) const
@@ -144,6 +156,57 @@ bool Catalog::removeFile(const std::string& filepath) const
     std::error_code ec;
     return std::filesystem::remove(root/filepath, ec);
 }
+
+
+// InWork
+//==============================================================================
+Catalog::InWorkContent::InWorkContent(const std::filesystem::path& filepath, const std::filesystem::file_time_type timestamp)
+    : filepath(filepath)
+     ,timestamp(timestamp)
+{
+    auto parentpath = filepath.parent_path();
+    auto filename = filepath.filename().string();
+    auto inwork_filename = filename.insert(0, INWORK_PREFIX);
+    auto inwork_filepath = parentpath/inwork_filename;
+    ofs = std::ofstream(inwork_filepath, std::ios_base::in | std::ios_base::binary);
+}
+
+bool Catalog::InWorkContent::write(const char buffer[], const size_t sz)
+{
+    ofs.write(buffer, sz);
+    return ofs.good();
+}
+
+void Catalog::InWorkContent::done()
+{
+    ofs.close();
+    std::error_code ec;
+    // remove the old file
+    if (std::filesystem::exists(filepath, ec))
+        std::filesystem::remove(filepath, ec);
+    // swap in the new file
+    std::filesystem::rename(inwork_filepath, filepath, ec);
+
+    // set the timestamp
+    std::filesystem::last_write_time(filepath, timestamp, ec);
+}
+
+Catalog::InWorkContent::~InWorkContent()
+{
+    if (ofs.is_open())
+    {
+        ofs.close();
+        std::error_code ec;
+        std::filesystem::remove(inwork_filepath, ec);
+    }
+}
+
+Catalog::InWorkContent Catalog::newContent(const std::string& filepath, const std::filesystem::file_time_type timestamp)
+{
+    // TODO decide if we should make space for new content
+    return InWorkContent(root/filepath, timestamp);
+}
+
 
 // PRIVATE
 //==============================================================================

@@ -14,6 +14,8 @@ void httpDecode(std::string& encoded);
 static constexpr char ISO_8601_FORMAT[] = "%FT%T";
 void timestamp(const time_t& timestamp, char buffer[20]);
 
+time_t timestamp(char buffer[20]);
+
 
 // static constexpr std::size_t CHUNK_SIZE = 1048;
 static constexpr std::size_t CHUNK_SIZE = 1450;

@@ -34,7 +34,7 @@ public:
     /// @returns true if content exists
     bool hasFile(const std::string& filepath) const;
 
-    time_t timestamp(const std::string& filepath) const;
+    std::filesystem::file_time_type timestamp(const std::string& filepath) const;
 
     std::ifstream readContent(const std::string& filepath) const;
 
@@ -43,6 +43,33 @@ public:
     bool removeFile(const std::string& filepath) const;
 //------------------------------------------------------------------------------
 
+// Upload Support
+//------------------------------------------------------------------------------
+    class InWorkContent {
+    public:
+        bool write(const char buffer[], const size_t sz);
+        /// @brief swaps original file (if exists) with new file
+        void done();
+
+        /// @brief  cleans up inwork content
+        ~InWorkContent();
+
+    // FIXME provide access to newContent
+    // protected:
+        InWorkContent(
+            const std::filesystem::path& filepath,
+            const std::filesystem::file_time_type timestamp
+        );
+
+    private:
+        const std::filesystem::path& filepath;
+        const std::filesystem::path inwork_filepath;
+        const std::filesystem::file_time_type timestamp;
+        std::ofstream ofs;
+    };
+    /// start a new content transfer
+    InWorkContent newContent(const std::string& filepath, const std::filesystem::file_time_type timestamp = {});
+//------------------------------------------------------------------------------
 
 private:
     const std::filesystem::path root;
