@@ -181,10 +181,9 @@ esp_err_t GET_FOLDER(httpd_req_t* const request)
             cJSON_AddNumberToObject(fileInfo, "size", entry.file_size());
 
             // FIXME timestamp is incorrect
-            auto fileTime = entry.last_write_time().time_since_epoch().count();
-            char buffer[20];
-            rest::timestamp(fileTime, buffer);
-            cJSON_AddItemToObject(fileInfo, "timestamp", cJSON_CreateString(buffer));
+            // char buffer[20];
+            // rest::timestamp(entry.last_write_time(), buffer);
+            // cJSON_AddItemToObject(fileInfo, "timestamp", cJSON_CreateString(buffer));
 
             auto filepath = (std::filesystem::path(folderpath) / entry.path().filename()).string();
             auto title = context->catalog.getTitle(filepath);
@@ -281,40 +280,40 @@ esp_err_t PUT_FILE(httpd_req_t* const request)
     // receive the data
     std::unique_ptr<char[]> buf(new char[rest::CHUNK_SIZE]);
     if (buf == nullptr) return TOO_MANY_REQUESTS(request);
+    // FIXME create a timestamp
     // auto timestamp = rest::timestamp(s_timestamp);
-    // auto inwork = context->catalog.newContent(filepath, request->content_len, timestamp);
-    // esp_err_t ret = ESP_OK;
-    // for (size_t remaining = request->content_len; remaining > 0;)
-    // {
-    //     const int received = httpd_req_recv(request, buf.get(), std::min(remaining, rest::CHUNK_SIZE));
-    //     if (received < 0)
-    //     {
-    //         ESP_LOGW(TAG, "PUT incomplete: %s [%d/%d]", request->uri,
-    //                  (request->content_len - remaining), request->content_len);
-    //         ret = ESP_FAIL;
-    //         break;
-    //     }
-    //     if (false == inwork.write(buf.get(), received))
-    //     {
-    //         ESP_LOGE(TAG, "PUT write failed: %s [%d/%d]", request->uri,
-    //                  (request->content_len - remaining), request->content_len);
-    //         ret = ESP_FAIL;
-    //         break;
-    //     }
-    //     remaining -= received;
-    // }
+    auto timestamp = std::filesystem::file_time_type{};
+    auto inwork = context->catalog.newContent(filepath, timestamp);
+    esp_err_t ret = ESP_OK;
+    for (size_t remaining = request->content_len; remaining > 0;)
+    {
+        const int received = httpd_req_recv(request, buf.get(), std::min(remaining, rest::CHUNK_SIZE));
+        if (received < 0)
+        {
+            ESP_LOGW(TAG, "PUT incomplete: %s [%d/%d]", request->uri,
+                     (request->content_len - remaining), request->content_len);
+            ret = ESP_FAIL;
+            break;
+        }
+        if (false == inwork.write(buf.get(), received))
+        {
+            ESP_LOGE(TAG, "PUT write failed: %s [%d/%d]", request->uri,
+                     (request->content_len - remaining), request->content_len);
+            ret = ESP_FAIL;
+            break;
+        }
+        remaining -= received;
+    }
 
-    // if (ret == ESP_OK)
-    // {
-    //     // complete the file transaction
-    //     inwork.done();
-    //     // send an empty 200 response
-    //     return httpd_resp_send(request, nullptr, 0);
-    // }
-    // else
-    //     return httpd_resp_send_err(request, HTTPD_408_REQ_TIMEOUT, "Upload failed");
-    // FIXME
-    return ILLEGAL_REQUEST(request);
+    if (ret == ESP_OK)
+    {
+        // complete the file transaction
+        inwork.done();
+        // send an empty 200 response
+        return httpd_resp_send(request, nullptr, 0);
+    }
+    else
+        return httpd_resp_send_err(request, HTTPD_408_REQ_TIMEOUT, "Upload failed");
 }
 
 esp_err_t DELETE_FILE(httpd_req_t* const request)
