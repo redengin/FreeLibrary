@@ -59,7 +59,6 @@ static UriType uriType(const std::string& uri)
 }
 
 // forward declarations
-static esp_err_t ILLEGAL_REQUEST(httpd_req_t* const request);
 static esp_err_t GET_FOLDER(httpd_req_t* const request);
 static esp_err_t DELETE_FOLDER(httpd_req_t* const request);
 static esp_err_t GET_FILE(httpd_req_t* const request);
@@ -80,7 +79,7 @@ esp_err_t handler(httpd_req_t* request)
                 case HTTP_GET : return GET_FOLDER(request);
                 case HTTP_DELETE: return DELETE_FOLDER(request);
                 default:
-                    return ILLEGAL_REQUEST(request);
+                    return rest::ILLEGAL_REQUEST(request);
             }
         }
 
@@ -93,7 +92,7 @@ esp_err_t handler(httpd_req_t* request)
                 case HTTP_DELETE: return DELETE_FILE(request);
 
                 default:
-                    return ILLEGAL_REQUEST(request);
+                    return rest::ILLEGAL_REQUEST(request);
             }
         }
 
@@ -105,7 +104,7 @@ esp_err_t handler(httpd_req_t* request)
                 case HTTP_PUT: return PUT_ICON(request);
 
                 default:
-                    return ILLEGAL_REQUEST(request);
+                    return rest::ILLEGAL_REQUEST(request);
             }
         }
 
@@ -116,26 +115,16 @@ esp_err_t handler(httpd_req_t* request)
                 case HTTP_PUT: return PUT_TITLE(request);
 
                 default:
-                    return ILLEGAL_REQUEST(request);
+                    return rest::ILLEGAL_REQUEST(request);
             }
         }
 
         default:
         {
             ESP_LOGI(TAG, "unhandled request %s", request->uri);
-            return ILLEGAL_REQUEST(request);
+            return rest::ILLEGAL_REQUEST(request);
         }
     }
-}
-
-static esp_err_t ILLEGAL_REQUEST(httpd_req_t* request)
-{
-    return httpd_resp_send_err(request, HTTPD_400_BAD_REQUEST, nullptr);
-}
-
-static esp_err_t TOO_MANY_REQUESTS(httpd_req_t* request)
-{
-    return httpd_resp_send_custom_err(request, "429 Too many requests", "try-again");
 }
 
 static std::string catalogPath(const char* const requestUri)
@@ -165,48 +154,37 @@ esp_err_t GET_FOLDER(httpd_req_t* const request)
         return httpd_resp_send_404(request);
 
     // send the data
-    auto subfolders = cJSON_CreateArray();
-    auto files = cJSON_CreateArray();
-    for (auto& entry : context->catalog.entries(folderpath))
-    {
-        if (entry.is_directory())
-            cJSON_AddItemToArray(subfolders, cJSON_CreateString(entry.path().filename().c_str()));
-
-        else if (entry.is_regular_file())
-        {
-            auto fileInfo = cJSON_CreateObject();
-            cJSON_AddItemToObject(fileInfo, "name", cJSON_CreateString(entry.path().filename().c_str()));
-
-            // FIXME file size is incorrect
-            cJSON_AddNumberToObject(fileInfo, "size", entry.file_size());
-
-            // FIXME timestamp is incorrect
-            // char buffer[20];
-            // rest::timestamp(entry.last_write_time(), buffer);
-            // cJSON_AddItemToObject(fileInfo, "timestamp", cJSON_CreateString(buffer));
-
-            auto filepath = (std::filesystem::path(folderpath) / entry.path().filename()).string();
-            auto title = context->catalog.getTitle(filepath);
-            if (title)
-                cJSON_AddItemToObject(fileInfo, "timestamp", cJSON_CreateString(title.value().c_str()));
-
-            cJSON_AddBoolToObject(fileInfo, "hasIcon", context->catalog.hasIcon(filepath));
-
-            cJSON_AddItemToArray(files, fileInfo);
-        }
-    }
+    auto folderInfo = context->catalog.folderInfo(folderpath);
     auto response = cJSON_CreateObject();
-    cJSON_AddBoolToObject(response, "locked", context->catalog.isLocked(folderpath));
+    cJSON_AddBoolToObject(response, "locked", folderInfo.isLocked);
+    auto subfolders = cJSON_CreateArray();
+    for (auto& subfolder : folderInfo.subfolders)
+        cJSON_AddItemToArray(subfolders, cJSON_CreateString(subfolder.c_str()));
     cJSON_AddItemToObject(response, "subfolders", subfolders);
+    auto files = cJSON_CreateArray();
+    for (auto& file : folderInfo.files)
+    {
+        auto fileInfo = cJSON_CreateObject();
+        cJSON_AddItemToObject(fileInfo, "name", cJSON_CreateString(file.name.c_str()));
+        cJSON_AddNumberToObject(fileInfo, "size", file.size);
+        cJSON_AddItemToObject(fileInfo, "timestamp", cJSON_CreateString(rest::timestamp(file.timestamp).c_str()));
+        if (file.title)
+            cJSON_AddItemToObject(fileInfo, "timestamp", cJSON_CreateString(file.title.value().c_str()));
+        cJSON_AddBoolToObject(fileInfo, "hasIcon", file.hasIcon);
+
+        cJSON_AddItemToArray(files, fileInfo);
+    }
     cJSON_AddItemToObject(response, "files", files);
 
     char *const data = cJSON_PrintUnformatted(response);
+    cJSON_Delete(response);
+
+    if (data == nullptr)
+        return rest::TOO_MANY_REQUESTS(request);
+
     httpd_resp_set_type(request, "application/json");
     auto ret = httpd_resp_send(request, data, strlen(data));
-
-    cJSON_Delete(response);
     cJSON_free(data);
-
     return ret;
 }
 
@@ -219,11 +197,13 @@ esp_err_t DELETE_FOLDER(httpd_req_t* const request)
     if (! context->catalog.hasFolder(folderpath))
         return httpd_resp_send_404(request);
 
-    // FIXME should check if parent is also locked
-    if (context->catalog.isLocked(folderpath))
+    // requires admin access if this folder or parent folder is locked
+    auto path = std::filesystem::path(folderpath);
+    if (context->catalog.isLocked(path) || context->catalog.isLocked(path.parent_path()))
     {
         // TODO determine if caller has admin credentials
-        return httpd_resp_send_err(request, HTTPD_401_UNAUTHORIZED, "folder is locked by admin");
+        if (false /* hasAdminCredentials() */)
+            return httpd_resp_send_err(request, HTTPD_401_UNAUTHORIZED, "folder is locked by admin");
     }
 
     if (context->catalog.removeFolder(folderpath))
@@ -241,17 +221,9 @@ esp_err_t GET_FILE(httpd_req_t* const request)
     if (! context->catalog.hasFile(filepath))
         return httpd_resp_send_404(request);
 
-    // create a chunk buffer
-    std::unique_ptr<char[]> buf(new char[rest::CHUNK_SIZE]);
-    if (! buf)
-        return TOO_MANY_REQUESTS(request);
-
     // set timestamp header
-    // FIXME
-    // auto timestamp = context->catalog.timestamp(filepath);
-    // char buffer[20];
-    // rest::timestamp(timestamp, buffer);
-    // httpd_resp_set_hdr(request, rest::catalog::XFILETIMESTAMP, buffer);
+    httpd_resp_set_hdr(request, rest::catalog::XFILETIMESTAMP,
+        rest::timestamp(context->catalog.timestamp(filepath)).c_str());
 
     auto fis = context->catalog.readContent(filepath);
     return rest::sendOctetStream(request, fis);
@@ -263,57 +235,28 @@ esp_err_t PUT_FILE(httpd_req_t* const request)
     const auto filepath = catalogPath(request->uri);
     ESP_LOGI(TAG, "handling request[%s] for PUT FILE [/%s]", request->uri, filepath.c_str());
 
-    // must supply Content-Length header
-    if (request->content_len <= 0)
-        return httpd_resp_send_err(request, HTTPD_411_LENGTH_REQUIRED, nullptr);
-
-    char s_timestamp[20];
-    if (ESP_OK != httpd_req_get_hdr_value_str(request, rest::catalog::XFILETIMESTAMP, s_timestamp, sizeof(s_timestamp)))
-        return httpd_resp_send_custom_err(request, "412 X-FileTimeStamp required", "failed");
-
-    if (context->catalog.isLocked(filepath))
+    // requires admin access if this folder is locked
+    auto path = std::filesystem::path(filepath).parent_path();
+    if (context->catalog.isLocked(path))
     {
         // TODO determine if caller has admin credentials
-        return httpd_resp_send_err(request, HTTPD_401_UNAUTHORIZED, "folder is locked by admin");
+        if (false /* hasAdminCredentials() */)
+            return httpd_resp_send_err(request, HTTPD_401_UNAUTHORIZED, "folder is locked by admin");
     }
 
     // receive the data
-    std::unique_ptr<char[]> buf(new char[rest::CHUNK_SIZE]);
-    if (buf == nullptr) return TOO_MANY_REQUESTS(request);
-    // FIXME create a timestamp
-    // auto timestamp = rest::timestamp(s_timestamp);
-    auto timestamp = std::filesystem::file_time_type{};
-    auto inwork = context->catalog.newContent(filepath, timestamp);
-    esp_err_t ret = ESP_OK;
-    for (size_t remaining = request->content_len; remaining > 0;)
+    // FIXME should check request->content_len (aka HTTP header CONTENT-LENGTH) to see if it it'll fit
+    // FIXME should check for X-FileTimeStamp (aka custom HTTP header) or use common HTTP header value to determine timestamp
+    auto inwork = context->catalog.addFile(filepath /*, timestamp */);
+    if (rest::receiveOctetStream(request, inwork.ofs))
     {
-        const int received = httpd_req_recv(request, buf.get(), std::min(remaining, rest::CHUNK_SIZE));
-        if (received < 0)
-        {
-            ESP_LOGW(TAG, "PUT incomplete: %s [%d/%d]", request->uri,
-                     (request->content_len - remaining), request->content_len);
-            ret = ESP_FAIL;
-            break;
-        }
-        if (false == inwork.write(buf.get(), received))
-        {
-            ESP_LOGE(TAG, "PUT write failed: %s [%d/%d]", request->uri,
-                     (request->content_len - remaining), request->content_len);
-            ret = ESP_FAIL;
-            break;
-        }
-        remaining -= received;
-    }
-
-    if (ret == ESP_OK)
-    {
-        // complete the file transaction
+        // complete the transfer by publishing the new file
         inwork.done();
-        // send an empty 200 response
-        return httpd_resp_send(request, nullptr, 0);
+        return httpd_resp_sendstr(request, "OK");
     }
-    else
-        return httpd_resp_send_err(request, HTTPD_408_REQ_TIMEOUT, "Upload failed");
+    
+    // upon error, rest::receieveOctetStream has already responded to client
+    return ESP_OK;
 }
 
 esp_err_t DELETE_FILE(httpd_req_t* const request)
@@ -328,13 +271,14 @@ esp_err_t DELETE_FILE(httpd_req_t* const request)
     if (context->catalog.isLocked(filepath))
     {
         // TODO determine if caller has admin credentials
-        return httpd_resp_send_err(request, HTTPD_401_UNAUTHORIZED, "folder is locked by admin");
+        if (false /* hasAdminCredentials() */)
+            return httpd_resp_send_err(request, HTTPD_401_UNAUTHORIZED, "folder is locked by admin");
     }
 
     if (context->catalog.removeFile(filepath))
         return httpd_resp_sendstr(request, "OK");
-
-    return httpd_resp_send_err(request, HTTPD_500_INTERNAL_SERVER_ERROR, "folder is locked by admin");
+    else
+        return httpd_resp_send_err(request, HTTPD_500_INTERNAL_SERVER_ERROR, nullptr);
 }
 
 esp_err_t GET_ICON(httpd_req_t* const request)
@@ -371,8 +315,16 @@ esp_err_t PUT_ICON(httpd_req_t* const request)
         return httpd_resp_send_err(request, HTTPD_401_UNAUTHORIZED, "folder is locked by admin");
     }
 
-    // FIXME implement
-    return ESP_FAIL;
+    auto inwork = context->catalog.addIcon(filepath /*, timestamp */);
+    if (rest::receiveOctetStream(request, inwork.ofs))
+    {
+        // complete the transfer by publishing the new file
+        inwork.done();
+        return httpd_resp_sendstr(request, "OK");
+    }
+    
+    // upon error, rest::receieveOctetStream has already responded to client
+    return ESP_OK;
 }
 
 esp_err_t PUT_TITLE(httpd_req_t* const request)
@@ -390,6 +342,9 @@ esp_err_t PUT_TITLE(httpd_req_t* const request)
         return httpd_resp_send_err(request, HTTPD_401_UNAUTHORIZED, "folder is locked by admin");
     }
 
-    // FIXME implement
-    return ESP_FAIL;
+    char title[200]; // FIXME get title from query parameter
+    if (context->catalog.setTitle(filepath, title))
+        return httpd_resp_sendstr(request, "OK");
+    else
+        return httpd_resp_send_err(request, HTTPD_500_INTERNAL_SERVER_ERROR, nullptr);
 }

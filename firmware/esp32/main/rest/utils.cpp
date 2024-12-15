@@ -32,11 +32,32 @@ void rest::httpDecode(std::string& encoded)
     }
 }
 
+std::string rest::timestamp(const std::filesystem::file_time_type& timestamp)
+{
+    std::stringstream ss;
+    auto epochTime = timestamp.time_since_epoch().count();
+    ss << std::put_time(
+        std::localtime(&epochTime),
+        rest::ISO_8601_Z_FORMAT
+    );
+    return ss.str();
+}
+
+esp_err_t rest::ILLEGAL_REQUEST(httpd_req_t* request)
+{
+    return httpd_resp_send_err(request, HTTPD_400_BAD_REQUEST, nullptr);
+}
+esp_err_t rest::TOO_MANY_REQUESTS(httpd_req_t* request)
+{
+    return httpd_resp_send_custom_err(request, "429 Too many requests", "try-again");
+}
+
 esp_err_t rest::sendOctetStream(httpd_req_t* const request, std::ifstream& fis)
 {
+    // create a chunk buffer
     std::unique_ptr<char[]> buffer = std::make_unique<char[]>(rest::CHUNK_SIZE);
     if (! buffer)
-        return httpd_resp_send_err(request, HTTPD_408_REQ_TIMEOUT, "Too many requests (try again)");
+        return TOO_MANY_REQUESTS(request);
 
     // set the response mime type
     httpd_resp_set_type(request, "application/octet-stream");
@@ -52,5 +73,30 @@ esp_err_t rest::sendOctetStream(httpd_req_t* const request, std::ifstream& fis)
         if (sz == 0)
             return ESP_OK;
 
+    } while(true);
+}
+
+bool rest::receiveOctetStream(httpd_req_t* const request, std::ofstream& fos)
+{
+    // create a chunk buffer
+    std::unique_ptr<char[]> buffer = std::make_unique<char[]>(rest::CHUNK_SIZE);
+    if (! buffer)
+    {
+        TOO_MANY_REQUESTS(request);
+        return false;
+    }
+
+    // receive the data
+    do {
+        const int received = httpd_req_recv(request, buffer.get(), rest::CHUNK_SIZE);
+        if (received < 0)
+            return false; // socket failed
+
+        if (received == 0)
+            return true; // all data received
+
+        fos.write(buffer.get(), received);
+        if (! fos.good())
+            return false; // unable to write any more data
     } while(true);
 }

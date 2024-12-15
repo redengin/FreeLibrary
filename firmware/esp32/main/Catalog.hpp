@@ -14,47 +14,82 @@ public:
 // Folder support
 //------------------------------------------------------------------------------
     /// @returns true if folder exists
-    bool hasFolder(const std::string& folderpath) const;
-
-    std::vector<std::filesystem::directory_entry> entries(const std::string folderpath) const;
+    bool hasFolder(
+            const std::filesystem::path& folderpath ///< relative to catalog
+    ) const;
 
     /// @returns true if folder is admin only
-    bool isLocked(const std::string& folderpath) const;
+    bool isLocked(
+            const std::filesystem::path& folderpath ///< relative to catalog
+    ) const;
 
-    std::optional<std::string> getTitle(const std::string& filepath) const;
+    struct FileInfo {
+        std::string name;
+        std::size_t size;
+        std::filesystem::file_time_type timestamp;
+        std::optional<std::string> title;
+        bool hasIcon;
+    };
+    struct FolderInfo {
+        bool isLocked;
+        std::vector<std::string> subfolders;
+        std::vector<FileInfo> files;
 
-    bool hasIcon(const std::string& filepath) const;
+        FolderInfo() : isLocked(true) {};
+    };
+    FolderInfo folderInfo(
+            const std::filesystem::path& folderpath ///< relative to catalog
+    ) const;
 
-    /// @brief folder must be empty to allow removal
-    bool removeFolder(const std::string& filepath) const;
+    /// @pre folder must be empty to allow removal
+    bool removeFolder(
+            const std::filesystem::path& folderpath ///< relative to catalog
+    );
+
 //------------------------------------------------------------------------------
-
 // File support
 //------------------------------------------------------------------------------
     /// @returns true if content exists
-    bool hasFile(const std::string& filepath) const;
+    bool hasFile(
+            const std::filesystem::path& filepath ///< relative to catalog
+    ) const;
 
-    std::filesystem::file_time_type timestamp(const std::string& filepath) const;
+    /// @pre should call hasFile() to determine if file exists
+    std::filesystem::file_time_type timestamp(
+            const std::filesystem::path& filepath ///< relative to catalog
+    ) const;
 
-    std::ifstream readContent(const std::string& filepath) const;
+    std::ifstream readContent(
+            const std::filesystem::path& filepath ///< relative to catalog
+    ) const;
 
-    std::ifstream readIcon(const std::string& filepath) const;
+    bool setTitle(
+            const std::filesystem::path& filepath, ///< relative to catalog
+            const std::string& title
+    ) const;
 
-    bool removeFile(const std::string& filepath) const;
+    std::ifstream readIcon(
+            const std::filesystem::path& filepath ///< relative to catalog
+    ) const;
+
+    bool removeFile(
+            const std::filesystem::path& filepath ///< relative to catalog
+    ) const;
+
 //------------------------------------------------------------------------------
-
 // Upload Support
 //------------------------------------------------------------------------------
     class InWorkContent {
     public:
-        bool write(const char buffer[], const size_t sz);
+        std::ofstream ofs;
+
         /// @brief swaps original file (if exists) with new file
         void done();
 
         /// @brief  cleans up inwork content
         ~InWorkContent();
 
-    // FIXME provide access to newContent
+    // FIXME limit access
     // protected:
         InWorkContent(
             const std::filesystem::path& filepath,
@@ -65,10 +100,10 @@ public:
         const std::filesystem::path& filepath;
         const std::filesystem::path inwork_filepath;
         const std::filesystem::file_time_type timestamp;
-        std::ofstream ofs;
     };
-    /// start a new content transfer
-    InWorkContent newContent(const std::string& filepath, const std::filesystem::file_time_type timestamp = {});
+
+    InWorkContent addFile(const std::string& filepath, const std::filesystem::file_time_type timestamp = {});
+    InWorkContent addIcon(const std::string& filepath, const std::filesystem::file_time_type timestamp = {});
 //------------------------------------------------------------------------------
 
 private:
@@ -85,5 +120,16 @@ private:
     ///< tempororary filename used during receive
     static constexpr char INWORK_PREFIX[] = ".inwork-";
 
-    static bool isHidden(const std::filesystem::path& path);
+    static bool isHidden(
+            const std::filesystem::path& path ///< relative to catalog
+    );
+
+    std::optional<std::string> getTitle(
+            const std::filesystem::path& filepath ///< relative to catalog
+    ) const;
+
+    bool hasIcon(
+            const std::filesystem::path& filepath ///< relative to catalog
+    ) const;
+
 };
