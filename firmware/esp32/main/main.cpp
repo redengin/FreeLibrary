@@ -29,7 +29,6 @@ void app_main(void)
     // register the catalog REST API
     rest::catalog::registerHandlers(webserver, catalog);
 
-
     // accept working firmware
-    esp_ota_mark_app_valid_cancel_rollback();
+    ESP_ERROR_CHECK(esp_ota_mark_app_valid_cancel_rollback());
 }

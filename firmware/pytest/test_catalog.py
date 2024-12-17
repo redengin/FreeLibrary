@@ -1,6 +1,6 @@
 import requests
 
-catalog_base_url = "http://192.168.4.1/catalog/"
+catalog_base_url = "http://192.168.4.1/api/catalog/"
 FILE_NAME = "testfile"
 FILE_SIZE = 100000
 FILE_PAYLOAD = "X" * FILE_SIZE

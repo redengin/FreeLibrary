@@ -7,6 +7,8 @@
 
 namespace rest {
 
+static constexpr char TAG[] = "rest::utils"; ///< ESP logging tag
+
 /// replaces HTTP tokens inplace
 void httpDecode(std::string& encoded);
 

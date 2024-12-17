@@ -102,8 +102,14 @@ public:
         const std::filesystem::file_time_type timestamp;
     };
 
-    InWorkContent addFile(const std::string& filepath, const std::filesystem::file_time_type timestamp = {});
-    InWorkContent addIcon(const std::string& filepath, const std::filesystem::file_time_type timestamp = {});
+    InWorkContent addFile(
+        const std::filesystem::path& path, ///< relative to catalog
+        const std::filesystem::file_time_type timestamp = {}
+    );
+    InWorkContent addIcon(
+        const std::filesystem::path& path, ///< relative to catalog
+        const std::filesystem::file_time_type timestamp = {}
+    );
 //------------------------------------------------------------------------------
 
 private:

@@ -1,5 +1,7 @@
 #include "WebServer.hpp"
 
+#include <sdkconfig.h>
+#define LOG_LOCAL_LEVEL     CONFIG_FREE_LIBRARY_LOG_LEVEL
 #include <esp_log.h>
 
 extern "C" esp_err_t redirect(httpd_req_t *req, httpd_err_code_t err);

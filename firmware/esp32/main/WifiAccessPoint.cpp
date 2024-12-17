@@ -1,13 +1,15 @@
 #include "WifiAccessPoint.hpp"
 
-#include <esp_log.h>
-
 #include <esp_wifi.h>
 #include <nvs_flash.h>
 
 #include <freertos/task.h>
 static void dns_service_task(void *pvParameters);
 #include <lwip/sockets.h>
+
+#include <sdkconfig.h>
+#define LOG_LOCAL_LEVEL     CONFIG_FREE_LIBRARY_LOG_LEVEL
+#include <esp_log.h>
 
 #include <cstring>
 

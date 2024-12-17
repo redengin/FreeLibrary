@@ -1,10 +1,13 @@
 #include "utils.hpp"
 
-#include <esp_log.h>
 #include <memory>
 #include <algorithm>
 #include <ctime>
 
+#include <sdkconfig.h>
+#define LOG_LOCAL_LEVEL     CONFIG_FREE_LIBRARY_LOG_LEVEL
+#include <esp_log.h>
+using rest::TAG;
 
 void rest::httpDecode(std::string& encoded)
 {
@@ -87,7 +90,8 @@ bool rest::receiveOctetStream(httpd_req_t* const request, std::ofstream& fos)
     }
 
     // receive the data
-    do {
+    while (fos.good())
+    {
         const int received = httpd_req_recv(request, buffer.get(), rest::CHUNK_SIZE);
         if (received < 0)
             return false; // socket failed
@@ -96,7 +100,8 @@ bool rest::receiveOctetStream(httpd_req_t* const request, std::ofstream& fos)
             return true; // all data received
 
         fos.write(buffer.get(), received);
-        if (! fos.good())
-            return false; // unable to write any more data
-    } while(true);
+    };
+
+    httpd_resp_send_err(request, HTTPD_500_INTERNAL_SERVER_ERROR, nullptr);
+    return false;
 }

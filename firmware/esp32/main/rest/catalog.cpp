@@ -1,10 +1,12 @@
 #include "catalog.hpp"
 #include "utils.hpp"
 
-#include <esp_log.h>
-using rest::catalog::TAG;
 #include <cJSON.h>
 
+#include <sdkconfig.h>
+#define LOG_LOCAL_LEVEL     CONFIG_FREE_LIBRARY_LOG_LEVEL
+#include <esp_log.h>
+using rest::catalog::TAG;
 
 struct Context {
     WebServer& webserver;        
@@ -329,22 +331,23 @@ esp_err_t PUT_ICON(httpd_req_t* const request)
 
 esp_err_t PUT_TITLE(httpd_req_t* const request)
 {
-    auto context = reinterpret_cast<Context*>(request->user_ctx);
-    const auto filepath = catalogPath(request->uri);
-    ESP_LOGI(TAG, "handling request[%s] for PUT ICON [/%s]", request->uri, filepath.c_str());
+    return rest::ILLEGAL_REQUEST(request);
+    // auto context = reinterpret_cast<Context*>(request->user_ctx);
+    // const auto filepath = catalogPath(request->uri);
+    // ESP_LOGI(TAG, "handling request[%s] for PUT ICON [/%s]", request->uri, filepath.c_str());
 
-    if (! context->catalog.hasFile(filepath))
-        return httpd_resp_send_404(request);
+    // if (! context->catalog.hasFile(filepath))
+    //     return httpd_resp_send_404(request);
 
-    if (context->catalog.isLocked(filepath))
-    {
-        // TODO determine if caller has admin credentials
-        return httpd_resp_send_err(request, HTTPD_401_UNAUTHORIZED, "folder is locked by admin");
-    }
+    // if (context->catalog.isLocked(filepath))
+    // {
+    //     // TODO determine if caller has admin credentials
+    //     return httpd_resp_send_err(request, HTTPD_401_UNAUTHORIZED, "folder is locked by admin");
+    // }
 
-    char title[200]; // FIXME get title from query parameter
-    if (context->catalog.setTitle(filepath, title))
-        return httpd_resp_sendstr(request, "OK");
-    else
-        return httpd_resp_send_err(request, HTTPD_500_INTERNAL_SERVER_ERROR, nullptr);
+    // char title[200]; // FIXME get title from query parameter
+    // if (context->catalog.setTitle(filepath, title))
+    //     return httpd_resp_sendstr(request, "OK");
+    // else
+    //     return httpd_resp_send_err(request, HTTPD_500_INTERNAL_SERVER_ERROR, nullptr);
 }

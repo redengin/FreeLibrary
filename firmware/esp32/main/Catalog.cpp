@@ -1,5 +1,7 @@
 #include "Catalog.hpp"
 
+#include <sdkconfig.h>
+#define LOG_LOCAL_LEVEL     CONFIG_FREE_LIBRARY_LOG_LEVEL
 #include <esp_log.h>
 
 Catalog::Catalog(const std::filesystem::path _root)
@@ -185,12 +187,16 @@ Catalog::InWorkContent::~InWorkContent()
     }
 }
 
-Catalog::InWorkContent Catalog::addFile(const std::string& filepath, const std::filesystem::file_time_type timestamp)
+Catalog::InWorkContent Catalog::addFile(const std::filesystem::path& filepath, const std::filesystem::file_time_type timestamp)
 {
+    // create folders if not present
+    std::error_code ec;
+    std::filesystem::create_directories(root/(filepath.parent_path()), ec);
+
     return InWorkContent(root/filepath, timestamp);
 }
 
-Catalog::InWorkContent Catalog::addIcon(const std::string& filepath, const std::filesystem::file_time_type timestamp)
+Catalog::InWorkContent Catalog::addIcon(const std::filesystem::path& filepath, const std::filesystem::file_time_type timestamp)
 {
     // FIXME use generic filepath->icon
     auto iconpath = ICON_PREFIX;
