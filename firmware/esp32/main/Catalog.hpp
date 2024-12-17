@@ -97,8 +97,8 @@ public:
         );
 
     private:
-        const std::filesystem::path& filepath;
-        const std::filesystem::path inwork_filepath;
+        const std::filesystem::path filepath;
+        std::filesystem::path inwork_filepath;
         const std::filesystem::file_time_type timestamp;
     };
 

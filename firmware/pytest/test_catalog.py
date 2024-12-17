@@ -1,9 +1,9 @@
 import requests
 
 catalog_base_url = "http://192.168.4.1/api/catalog/"
-FILE_NAME = "testfile"
+FILE_NAME = "test/testfile"
 FILE_SIZE = 100000
-FILE_PAYLOAD = "X" * FILE_SIZE
+FILE_PAYLOAD = b"X" * FILE_SIZE
 FILE_TITLE = "this is a testfile"
 FILE_ICON = "X" * FILE_SIZE
 

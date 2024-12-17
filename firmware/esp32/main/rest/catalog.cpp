@@ -218,7 +218,7 @@ esp_err_t GET_FILE(httpd_req_t* const request)
 {
     auto context = reinterpret_cast<Context*>(request->user_ctx);
     const auto filepath = catalogPath(request->uri);
-    ESP_LOGI(TAG, "handling request[%s] for GET FILE [/%s]", request->uri, filepath.c_str());
+    ESP_LOGD(TAG, "handling request[%s] for GET FILE [/%s]", request->uri, filepath.c_str());
 
     if (! context->catalog.hasFile(filepath))
         return httpd_resp_send_404(request);
@@ -235,7 +235,7 @@ esp_err_t PUT_FILE(httpd_req_t* const request)
 {
     auto context = reinterpret_cast<Context*>(request->user_ctx);
     const auto filepath = catalogPath(request->uri);
-    ESP_LOGI(TAG, "handling request[%s] for PUT FILE [/%s]", request->uri, filepath.c_str());
+    ESP_LOGD(TAG, "handling request[%s] for PUT FILE [/%s]", request->uri, filepath.c_str());
 
     // requires admin access if this folder is locked
     auto path = std::filesystem::path(filepath).parent_path();

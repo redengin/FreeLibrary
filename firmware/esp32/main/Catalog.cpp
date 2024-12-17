@@ -93,10 +93,16 @@ bool Catalog::removeFolder(const std::filesystem::path& folderpath)
 bool Catalog::hasFile(const std::filesystem::path& filepath) const
 {
     if (isHidden(filepath))
+    {
+        ESP_LOGD(TAG, "attempt to access hidden filepath [%s]", filepath.c_str());
         return false;
+    }
 
     std::error_code ec;
-    return std::filesystem::is_regular_file(root/filepath, ec);
+    auto ret = std::filesystem::is_regular_file(root/filepath, ec);
+    if (ec)
+        ESP_LOGD(TAG, "failed to determine if hasFile [%s, ec: %s]", filepath.c_str(), ec.message().c_str());
+    return ret;
 }
 
 std::filesystem::file_time_type Catalog::timestamp(const std::filesystem::path& filepath) const
@@ -159,22 +165,37 @@ Catalog::InWorkContent::InWorkContent(const std::filesystem::path& filepath, con
     auto parentpath = filepath.parent_path();
     auto filename = filepath.filename().string();
     auto inwork_filename = filename.insert(0, INWORK_PREFIX);
-    auto inwork_filepath = parentpath/inwork_filename;
-    ofs = std::ofstream(inwork_filepath, std::ios_base::in | std::ios_base::binary);
+    inwork_filepath = parentpath/inwork_filename;
+    ofs = std::ofstream(inwork_filepath, std::ios_base::out | std::ios_base::binary);
 }
 
 void Catalog::InWorkContent::done()
 {
-    ofs.close();
     std::error_code ec;
+
+    // flush all writes
+    ofs.close();
+
     // remove the old file
     if (std::filesystem::exists(filepath, ec))
         std::filesystem::remove(filepath, ec);
+    if (ec)
+        ESP_LOGW(TAG, "unable to remove old file [%s ec:%s]", filepath.c_str(), ec.message().c_str());
+
     // swap in the new file
     std::filesystem::rename(inwork_filepath, filepath, ec);
+    if (ec)
+        ESP_LOGW(TAG, "unable to rename inwork file [from:%s to:%s ec:%s]",
+            inwork_filepath.c_str(),
+            filepath.c_str(),
+            ec.message().c_str()
+        );
 
     // set the timestamp
     std::filesystem::last_write_time(filepath, timestamp, ec);
+    if (ec)
+        ESP_LOGW(TAG, "unable to set timestamp [%s ec:%s]", filepath.c_str(), ec.message().c_str());
+    // FIXME last_write_time set not implemented
 }
 
 Catalog::InWorkContent::~InWorkContent()
@@ -184,6 +205,8 @@ Catalog::InWorkContent::~InWorkContent()
         ofs.close();
         std::error_code ec;
         std::filesystem::remove(inwork_filepath, ec);
+        if (ec)
+            ESP_LOGW(TAG, "remove inwork file failed [%s]", ec.message().c_str());
     }
 }
 
@@ -192,6 +215,8 @@ Catalog::InWorkContent Catalog::addFile(const std::filesystem::path& filepath, c
     // create folders if not present
     std::error_code ec;
     std::filesystem::create_directories(root/(filepath.parent_path()), ec);
+    if (ec)
+        ESP_LOGW(TAG, "create directories failed [%s]", ec.message().c_str());
 
     return InWorkContent(root/filepath, timestamp);
 }
