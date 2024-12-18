@@ -4,10 +4,12 @@
 #include <algorithm>
 #include <ctime>
 
-#include <sdkconfig.h>
-#define LOG_LOCAL_LEVEL     CONFIG_FREE_LIBRARY_LOG_LEVEL
 #include <esp_log.h>
+#include <sdkconfig.h>
+#undef LOG_LOCAL_LEVEL
+#define LOG_LOCAL_LEVEL     CONFIG_FREE_LIBRARY_LOG_LEVEL
 using rest::TAG;
+
 
 void rest::httpDecode(std::string& encoded)
 {

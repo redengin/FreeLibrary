@@ -7,9 +7,10 @@
 static void dns_service_task(void *pvParameters);
 #include <lwip/sockets.h>
 
-#include <sdkconfig.h>
-#define LOG_LOCAL_LEVEL     CONFIG_FREE_LIBRARY_LOG_LEVEL
 #include <esp_log.h>
+#include <sdkconfig.h>
+#undef LOG_LOCAL_LEVEL
+#define LOG_LOCAL_LEVEL     CONFIG_FREE_LIBRARY_LOG_LEVEL
 
 #include <cstring>
 

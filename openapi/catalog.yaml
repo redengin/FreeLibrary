@@ -122,8 +122,8 @@ paths:
           schema:
             type: integer
             description: size of file in bytes
-        - name: X-FileTimeStamp
-          in: header
+        - name: timestamp
+          in: query
           required: true
           description: timestamp of file
           schema:

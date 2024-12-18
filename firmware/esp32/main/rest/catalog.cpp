@@ -3,9 +3,10 @@
 
 #include <cJSON.h>
 
-#include <sdkconfig.h>
-#define LOG_LOCAL_LEVEL     CONFIG_FREE_LIBRARY_LOG_LEVEL
 #include <esp_log.h>
+#include <sdkconfig.h>
+#undef LOG_LOCAL_LEVEL
+#define LOG_LOCAL_LEVEL     CONFIG_FREE_LIBRARY_LOG_LEVEL
 using rest::catalog::TAG;
 
 struct Context {
@@ -194,7 +195,7 @@ esp_err_t DELETE_FOLDER(httpd_req_t* const request)
 {
     auto context = reinterpret_cast<Context*>(request->user_ctx);
     const auto folderpath = catalogPath(request->uri);
-    ESP_LOGI(TAG, "handling request[%s] for DELETE FOLDER [/%s]", request->uri, folderpath.c_str());
+    ESP_LOGD(TAG, "handling request[%s] for DELETE FOLDER [/%s]", request->uri, folderpath.c_str());
 
     if (! context->catalog.hasFolder(folderpath))
         return httpd_resp_send_404(request);
@@ -248,7 +249,7 @@ esp_err_t PUT_FILE(httpd_req_t* const request)
 
     // receive the data
     // FIXME should check request->content_len (aka HTTP header CONTENT-LENGTH) to see if it it'll fit
-    // FIXME should check for X-FileTimeStamp (aka custom HTTP header) or use common HTTP header value to determine timestamp
+    // FIXME should check query for timestamp
     auto inwork = context->catalog.addFile(filepath /*, timestamp */);
     if (rest::receiveOctetStream(request, inwork.ofs))
     {
@@ -265,7 +266,7 @@ esp_err_t DELETE_FILE(httpd_req_t* const request)
 {
     auto context = reinterpret_cast<Context*>(request->user_ctx);
     const auto filepath = catalogPath(request->uri);
-    ESP_LOGI(TAG, "handling request[%s] for DELETE FILE [/%s]", request->uri, filepath.c_str());
+    ESP_LOGD(TAG, "handling request[%s] for DELETE FILE [/%s]", request->uri, filepath.c_str());
 
     if (! context->catalog.hasFile(filepath))
         return httpd_resp_send_404(request);

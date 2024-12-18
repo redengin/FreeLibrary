@@ -12,7 +12,7 @@ def test_catalog():
     # create a new file
     test_url = catalog_base_url + FILE_NAME
     response = requests.put(test_url, data=FILE_PAYLOAD)
-    assert response.status_code == 200
+    assert 200 == response.status_code
 
     # retrieve that file
     response = requests.get(test_url)
@@ -22,8 +22,23 @@ def test_catalog():
 
     # remove that file
     response = requests.delete(test_url)
-    assert response.status_code == 200
+    assert 200 == response.status_code
 
+
+def test_catalog_timestamp():
+    # create a new file with timestamp
+    TIMESTAMP = "2025-01-06T01:02:03Z"
+    test_url = catalog_base_url + FILE_NAME
+    response = requests.put(test_url, query={"timestamp":TIMESTAMP}, data=FILE_PAYLOAD)
+    assert 200 == response.status_code
+
+    # retrieve the file
+    response = requests.get(test_url)
+    assert 200 == response.status_code
+    assert TIMESTAMP == response.headers["X-FileTimeStamp"]
+
+    # remove test file
+    response = requests.delete(test_url)
 
 
 

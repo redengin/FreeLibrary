@@ -1,8 +1,9 @@
 #include "Catalog.hpp"
 
-#include <sdkconfig.h>
-#define LOG_LOCAL_LEVEL     CONFIG_FREE_LIBRARY_LOG_LEVEL
 #include <esp_log.h>
+#include <sdkconfig.h>
+#undef LOG_LOCAL_LEVEL
+#define LOG_LOCAL_LEVEL     CONFIG_FREE_LIBRARY_LOG_LEVEL
 
 Catalog::Catalog(const std::filesystem::path _root)
     : root(_root)
@@ -141,17 +142,22 @@ bool Catalog::removeFile(const std::filesystem::path& filepath) const
     if (isHidden(filepath))
         return false;
 
-    if (std::filesystem::is_regular_file(root/filepath))
+    std::error_code ec;
+    if (std::filesystem::is_regular_file(root/filepath, ec))
     {
         // remove the file
-        std::error_code ec;
         std::filesystem::remove(root/filepath, ec);
+        if (ec)
+            ESP_LOGW(TAG, "failed to remove file [%s ec:%s]", filepath.c_str(), ec.message().c_str());
 
         // TODO remove the title
         // TODO remove the icon
 
         return true;
     }
+
+    if (ec)
+        ESP_LOGW(TAG, "unable to determine if regular file [%s ec:%s]", filepath.c_str(), ec.message().c_str());
 
     return false;
 }
