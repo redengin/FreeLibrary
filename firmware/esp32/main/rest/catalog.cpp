@@ -225,8 +225,8 @@ esp_err_t GET_FILE(httpd_req_t* const request)
         return httpd_resp_send_404(request);
 
     // set timestamp header
-    httpd_resp_set_hdr(request, rest::catalog::XFILETIMESTAMP,
-        rest::timestamp(context->catalog.timestamp(filepath)).c_str());
+    auto timestamp = rest::timestamp(context->catalog.timestamp(filepath));
+    httpd_resp_set_hdr(request, rest::catalog::XFILETIMESTAMP, timestamp.c_str());
 
     auto fis = context->catalog.readContent(filepath);
     return rest::sendOctetStream(request, fis);
@@ -249,8 +249,18 @@ esp_err_t PUT_FILE(httpd_req_t* const request)
 
     // receive the data
     // FIXME should check request->content_len (aka HTTP header CONTENT-LENGTH) to see if it it'll fit
-    // FIXME should check query for timestamp
-    auto inwork = context->catalog.addFile(filepath /*, timestamp */);
+
+    // check for timestamp in X-FileTimeStamp header
+    std::optional<std::filesystem::file_time_type> timestamp = std::nullopt;
+    char buffer[21];
+    if (ESP_OK == httpd_req_get_hdr_value_str(request, rest::catalog::XFILETIMESTAMP, buffer, sizeof(buffer)))
+        timestamp = rest::timestamp(buffer);
+    else {
+        ESP_LOGW(TAG, "unable to get timestamp header");
+        ESP_LOGD(TAG, "X-FileTimeStamp header size was %i", httpd_req_get_hdr_value_len(request, "X-FileTimestamp"));
+    }
+
+    auto inwork = context->catalog.addFile(filepath, timestamp);
     if (rest::receiveOctetStream(request, inwork.ofs))
     {
         // complete the transfer by publishing the new file

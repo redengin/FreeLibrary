@@ -4,6 +4,7 @@
 #include <esp_err.h>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 
 namespace rest {
 
@@ -13,9 +14,10 @@ static constexpr char TAG[] = "rest::utils"; ///< ESP logging tag
 void httpDecode(std::string& encoded);
 
 /// timestamp format
-static constexpr char ISO_8601_Z_FORMAT[] = "%FT%TZ";
-std::string timestamp(const std::filesystem::file_time_type& timestamp);
-std::filesystem::file_time_type timestamp(const char* const s, const std::size_t sz);
+// static constexpr char ISO_8601_Z_FORMAT[] = "%FT%TZ";
+static constexpr char ISO_8601_Z_FORMAT[] = "%Y-%m-%dT%TZ";
+std::string timestamp(const std::filesystem::file_time_type&);
+std::optional<std::filesystem::file_time_type> timestamp(const std::string&);
 
 // common HTTP request handlers
 esp_err_t ILLEGAL_REQUEST(httpd_req_t* request);

@@ -93,27 +93,27 @@ public:
     // protected:
         InWorkContent(
             const std::filesystem::path& filepath,
-            const std::filesystem::file_time_type timestamp
+            const std::optional<std::filesystem::file_time_type> timestamp
         );
 
     private:
         const std::filesystem::path filepath;
         std::filesystem::path inwork_filepath;
-        const std::filesystem::file_time_type timestamp;
+        const std::optional<std::filesystem::file_time_type> timestamp;
     };
 
     InWorkContent addFile(
         const std::filesystem::path& path, ///< relative to catalog
-        const std::filesystem::file_time_type timestamp = {}
+        const std::optional<std::filesystem::file_time_type> timestamp
     );
     InWorkContent addIcon(
-        const std::filesystem::path& path, ///< relative to catalog
-        const std::filesystem::file_time_type timestamp = {}
+        const std::filesystem::path& path ///< relative to catalog
     );
 //------------------------------------------------------------------------------
 
 private:
     const std::filesystem::path root;
+    std::filesystem::file_time_type latest_timestamp{};
 
     /// hidden file/folder prefix
     static constexpr char HIDDEN_PREFIX = '.';

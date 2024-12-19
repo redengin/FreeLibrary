@@ -5,12 +5,19 @@
 #undef LOG_LOCAL_LEVEL
 #define LOG_LOCAL_LEVEL     CONFIG_FREE_LIBRARY_LOG_LEVEL
 
+#include <utime.h>
+#include <cstring>
+
 Catalog::Catalog(const std::filesystem::path _root)
     : root(_root)
 {
     // cleanup catalog state
     for(const auto& entry : std::filesystem::recursive_directory_iterator(root))
     {
+        // track the latest filetime
+        if (entry.last_write_time() > latest_timestamp)
+            latest_timestamp = entry.last_write_time();
+
         const auto filename = entry.path().filename();
         // remove any INWORK files
         if (filename.string().starts_with(INWORK_PREFIX))
@@ -109,7 +116,10 @@ bool Catalog::hasFile(const std::filesystem::path& filepath) const
 std::filesystem::file_time_type Catalog::timestamp(const std::filesystem::path& filepath) const
 {
     std::error_code ec;
-    return std::filesystem::last_write_time(root/filepath, ec);
+    auto ret = std::filesystem::last_write_time(root/filepath, ec);
+    if (ec)
+        ESP_LOGW(TAG, "unable to get last file write time [%s]", ec.message().c_str());
+    return ret;
 }
 
 std::ifstream Catalog::readContent(const std::filesystem::path& filepath) const
@@ -164,7 +174,7 @@ bool Catalog::removeFile(const std::filesystem::path& filepath) const
 
 // Upload Support
 //==============================================================================
-Catalog::InWorkContent::InWorkContent(const std::filesystem::path& filepath, const std::filesystem::file_time_type timestamp)
+Catalog::InWorkContent::InWorkContent(const std::filesystem::path& filepath, const std::optional<std::filesystem::file_time_type> timestamp)
     : filepath(filepath)
      ,timestamp(timestamp)
 {
@@ -197,11 +207,24 @@ void Catalog::InWorkContent::done()
             ec.message().c_str()
         );
 
-    // set the timestamp
-    std::filesystem::last_write_time(filepath, timestamp, ec);
-    if (ec)
-        ESP_LOGW(TAG, "unable to set timestamp [%s ec:%s]", filepath.c_str(), ec.message().c_str());
-    // FIXME last_write_time set not implemented
+    if (timestamp)
+    {
+        // set the timestamp
+        std::filesystem::last_write_time(filepath, timestamp.value(), ec);
+        if (ec) {
+            ESP_LOGD(TAG, "unable to set timestamp [%s ec:%s], will attemp via C api", filepath.c_str(), ec.message().c_str());
+
+            // TODO once ESP32 supports set last_write_time
+            // use c api (since not implemented in std::filesystem)
+            auto timestamp_s = std::chrono::duration_cast<std::chrono::seconds>(timestamp.value().time_since_epoch()).count();
+            struct utimbuf c_timestamp { .actime = timestamp_s, .modtime = timestamp_s };
+            if (0 != utime(filepath.c_str(), &c_timestamp))
+            {
+                ESP_LOGW(TAG, "unable to set timestamp [%s ec:%s]", filepath.c_str(), std::strerror(errno));
+                ESP_LOGD(TAG, "utimebuf{.actime = %lli, .modtime = %lli}", c_timestamp.actime, c_timestamp.modtime);
+            }
+        }
+    }
 }
 
 Catalog::InWorkContent::~InWorkContent()
@@ -216,7 +239,7 @@ Catalog::InWorkContent::~InWorkContent()
     }
 }
 
-Catalog::InWorkContent Catalog::addFile(const std::filesystem::path& filepath, const std::filesystem::file_time_type timestamp)
+Catalog::InWorkContent Catalog::addFile(const std::filesystem::path& filepath, const std::optional<std::filesystem::file_time_type> timestamp)
 {
     // create folders if not present
     std::error_code ec;
@@ -224,14 +247,21 @@ Catalog::InWorkContent Catalog::addFile(const std::filesystem::path& filepath, c
     if (ec)
         ESP_LOGW(TAG, "create directories failed [%s]", ec.message().c_str());
 
-    return InWorkContent(root/filepath, timestamp);
+    if (timestamp)
+    {
+        if (timestamp > latest_timestamp)
+            latest_timestamp = timestamp.value();
+        return InWorkContent(root/filepath, timestamp);
+    }
+    else
+        return InWorkContent(root/filepath, latest_timestamp);
 }
 
-Catalog::InWorkContent Catalog::addIcon(const std::filesystem::path& filepath, const std::filesystem::file_time_type timestamp)
+Catalog::InWorkContent Catalog::addIcon(const std::filesystem::path& filepath)
 {
     // FIXME use generic filepath->icon
     auto iconpath = ICON_PREFIX;
-    return InWorkContent(root/iconpath, timestamp);
+    return InWorkContent(root/iconpath, std::nullopt);
 }
 
 

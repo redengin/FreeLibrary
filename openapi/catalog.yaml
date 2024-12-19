@@ -26,8 +26,8 @@ paths:
   /catalog/{path}/:
     parameters:
       - name: path
-        in: path
         required: false
+        in: path
         description: defaults to root of catalog
         schema:
           type: string
@@ -87,13 +87,13 @@ paths:
   /catalog/{path}/{file}:
     parameters:
       - name: path
-        in: path
         required: false
+        in: path
         schema:
           type: string
       - name: file
-        in: path
         required: true
+        in: path
         schema:
           type: string
     get:
@@ -106,7 +106,6 @@ paths:
               description: timestamp of file [ISO 8601 Z (aka UTC time)]
               schema:
                 type: string
-                description: ISO 8601 Z (aka UTC time)
           content:
             application/octet-stream: {}
         "404":
@@ -117,20 +116,19 @@ paths:
       summary: add a file to the catalog
       parameters:
         - name: Content-Length
-          in: header
           required: true
+          in: header
           schema:
             type: integer
             description: size of file in bytes
-        - name: timestamp
-          in: query
+        - name: X-FileTimeStamp
           required: true
-          description: timestamp of file
+          in: header
           schema:
-              type: string
-              description: ISO 8601 Z (aka UTC time)
-        - name: title
-          in: query
+            type: string
+        - name: X-FileTitle
+          required: false
+          in: header
           schema:
             type: string
       requestBody:
@@ -165,8 +163,8 @@ paths:
       description: set the title for the file
       parameters:
         - name: title
-          in: query
           required: true
+          in: query
           schema:
             type: string
       responses:
@@ -195,11 +193,11 @@ paths:
       description: set the icon for the file
       parameters:
         - name: Content-Length
-          in: header
           required: true
+          in: header
+          description: size of icon in bytes
           schema:
             type: integer
-            description: size of icon in bytes
       requestBody:
         content:
           application/octet-stream: {}

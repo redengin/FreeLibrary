@@ -2,7 +2,7 @@
 
 #include <memory>
 #include <algorithm>
-#include <ctime>
+#include <time.h>
 
 #include <esp_log.h>
 #include <sdkconfig.h>
@@ -39,13 +39,37 @@ void rest::httpDecode(std::string& encoded)
 
 std::string rest::timestamp(const std::filesystem::file_time_type& timestamp)
 {
+    const std::time_t time = std::chrono::duration_cast<std::chrono::seconds>(timestamp.time_since_epoch()).count();
+    std::tm tm;
+    gmtime_r(&time, &tm);
+
     std::stringstream ss;
-    auto epochTime = timestamp.time_since_epoch().count();
-    ss << std::put_time(
-        std::localtime(&epochTime),
-        rest::ISO_8601_Z_FORMAT
-    );
+    ss << std::put_time(&tm, rest::ISO_8601_Z_FORMAT);
+    if (ss.fail())
+    {
+        ESP_LOGW(TAG, "illegal rest::ISO_8601_Z_FORMAT");
+        return "";
+    }
+
+    ESP_LOGD(TAG, "timestamp is %lli", time);
     return ss.str();
+}
+
+std::optional<std::filesystem::file_time_type> rest::timestamp(const std::string& timestamp)
+{
+    std::istringstream ss(timestamp);
+    std::tm tm{};
+    ss >> std::get_time(&tm, ISO_8601_Z_FORMAT);
+    if (ss.fail())
+    {
+        ESP_LOGW(TAG, "failed to parse timestamp [%s]", timestamp.c_str());
+        return std::nullopt;
+    }
+
+    std::time_t time_s = std::mktime(&tm);
+
+    ESP_LOGD(TAG, "timestamp is %lli", time_s);
+    return std::filesystem::file_time_type(std::chrono::seconds(time_s));
 }
 
 esp_err_t rest::ILLEGAL_REQUEST(httpd_req_t* request)
