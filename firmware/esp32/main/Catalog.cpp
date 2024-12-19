@@ -214,9 +214,9 @@ void Catalog::InWorkContent::done()
         if (ec) {
             ESP_LOGD(TAG, "unable to set timestamp [%s ec:%s], will attemp via C api", filepath.c_str(), ec.message().c_str());
 
-            // TODO once ESP32 supports set last_write_time
+            // FIXME once ESP32 supports set last_write_time
             // use c api (since not implemented in std::filesystem)
-            auto timestamp_s = std::chrono::duration_cast<std::chrono::seconds>(timestamp.value().time_since_epoch()).count();
+            auto timestamp_s = std::chrono::ceil<std::chrono::seconds>(timestamp.value().time_since_epoch()).count();
             struct utimbuf c_timestamp { .actime = timestamp_s, .modtime = timestamp_s };
             if (0 != utime(filepath.c_str(), &c_timestamp))
             {

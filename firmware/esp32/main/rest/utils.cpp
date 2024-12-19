@@ -39,7 +39,7 @@ void rest::httpDecode(std::string& encoded)
 
 std::string rest::timestamp(const std::filesystem::file_time_type& timestamp)
 {
-    const std::time_t time = std::chrono::duration_cast<std::chrono::seconds>(timestamp.time_since_epoch()).count();
+    const auto time = std::chrono::system_clock::to_time_t(std::chrono::file_clock::to_sys(timestamp));
     std::tm tm;
     gmtime_r(&time, &tm);
 
