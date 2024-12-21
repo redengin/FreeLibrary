@@ -24,9 +24,9 @@ def test_catalog():
     assert 200 == response.status_code
     assert FILE_SIZE == len(response.content)
     assert FILE_PAYLOAD == response.content
-    # FIXME off by one second
     print(f"expected {TIMESTAMP} got {response.headers['X-FileTimeStamp']}")
-    # assert TIMESTAMP == response.headers["X-FileTimeStamp"]
+    # FIXME off by one second (so only comparing upto the minute)
+    assert TIMESTAMP[0:17] == response.headers["X-FileTimeStamp"][0:17]
 
     # remove the file
     response = requests.delete(test_url)

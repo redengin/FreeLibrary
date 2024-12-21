@@ -39,9 +39,13 @@ void rest::httpDecode(std::string& encoded)
 
 std::string rest::timestamp(const std::filesystem::file_time_type& timestamp)
 {
-    const auto time = std::chrono::system_clock::to_time_t(std::chrono::file_clock::to_sys(timestamp));
+    const auto timestamp_s = std::chrono::system_clock::to_time_t(
+        std::chrono::file_clock::to_sys(timestamp)
+    );
+    ESP_LOGD(TAG, "timestamp from file_time_type is %lli", timestamp_s);
+
     std::tm tm;
-    gmtime_r(&time, &tm);
+    gmtime_r(&timestamp_s, &tm);
 
     std::stringstream ss;
     ss << std::put_time(&tm, rest::ISO_8601_Z_FORMAT);
@@ -51,7 +55,6 @@ std::string rest::timestamp(const std::filesystem::file_time_type& timestamp)
         return "";
     }
 
-    ESP_LOGD(TAG, "timestamp is %lli", time);
     return ss.str();
 }
 
@@ -66,10 +69,12 @@ std::optional<std::filesystem::file_time_type> rest::timestamp(const std::string
         return std::nullopt;
     }
 
-    std::time_t time_s = std::mktime(&tm);
+    std::time_t timestamp_s = std::mktime(&tm);
+    ESP_LOGD(TAG, "timestamp from string is %lli", timestamp_s);
 
-    ESP_LOGD(TAG, "timestamp is %lli", time_s);
-    return std::filesystem::file_time_type(std::chrono::seconds(time_s));
+    return std::filesystem::file_time_type::clock::from_sys(
+        std::chrono::system_clock::from_time_t(timestamp_s)
+    );
 }
 
 esp_err_t rest::ILLEGAL_REQUEST(httpd_req_t* request)
