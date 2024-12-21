@@ -3,10 +3,14 @@ Free Library
 The [Little Free Library][lfl] organization expands access to information by
 providing access to physical books.
 
-<!--
-This project expands access to information by providing local access to digital
-books/content ([Concept of Operation](docs/conops.md)).
--->
+This project provides digital content directly to local users
+(i.e. a digital library decoupled from the internet).
+
+How is digital content provided to users?
+--------------------------------------------------------------------------------
+Just as Little Free Library participants build book cases, here you'll be able
+to build an inexpensive hardware device that provides digital content over Wifi
+(see [Concept of Operation](docs/conops.md)).
 
 Anyone can create one
 ================================================================================
