@@ -3,9 +3,10 @@ Free Library
 The [Little Free Library][lfl] organization expands access to information by
 providing access to physical books.
 
-This project expands access information by providing local access to digital
+<!--
+This project expands access to information by providing local access to digital
 books/content ([Concept of Operation](docs/conops.md)).
-
+-->
 
 Anyone can create one
 ================================================================================
